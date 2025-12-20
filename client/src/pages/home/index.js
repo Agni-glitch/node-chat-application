@@ -5,7 +5,7 @@ import ChatArea from "./components/Chat";
 import { useSelector } from "react-redux";
 import { io } from "socket.io-client";
 import { useEffect, useState } from "react";
-const socket = io('http://localhost:5000');
+const socket = io('https://quick-chat-app-server-a1ws.onrender.com');
 export default function Home() {
   const { selectedChat, user } = useSelector(state => state.userReducer)
   const [onlineUsers, setOnlineUsers] = useState([])
