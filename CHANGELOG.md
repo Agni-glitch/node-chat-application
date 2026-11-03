@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Vercel deployment** for the client: `vercel.json` with SPA rewrites, long-term caching for hashed
+  assets and security headers (CSP, frame, referrer and permissions policies).
+- Build-time check (`client/scripts/check-env.js`) that stops a Vercel build when `REACT_APP_API_URL`
+  is missing, not https, or includes a path.
+- **Render Blueprint** (`render.yaml`) for the API, with generated `JWT_SECRET` and `AI_KEYS_SECRET`.
+- `CLIENT_URL` accepts `*` in one hostname label (e.g. `https://quick-chat-*-team.vercel.app`) so Vercel
+  preview deployments can reach the API. Overly broad or malformed entries are rejected at startup.
+- Contributor docs: `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `docs/ARCHITECTURE.md`,
+  issue and pull request templates, Dependabot, `.editorconfig`, `.gitattributes` and `.nvmrc`.
+
+### Changed
+- Node.js 22 or newer is required (Node 18 and 20 are end-of-life, and the server test runner needs 21+).
+- CI tests on Node 22 and 24, builds the client with the same check as Vercel, builds the Docker image,
+  and runs with read-only permissions.
+- README and deployment guide rewritten around the Vercel + Render setup.
+
 ## 2.3.0: group chats
 
 ### Added

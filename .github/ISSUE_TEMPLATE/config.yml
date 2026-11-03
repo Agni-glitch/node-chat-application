@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/Agni-glitch/node-chat-application/security/advisories/new
+    about: Please report security issues privately, not as public issues.
+  - name: Deployment guide
+    url: https://github.com/Agni-glitch/node-chat-application/blob/main/docs/DEPLOYMENT.md
+    about: Most hosting questions (Vercel, Render, Docker, CORS) are answered here.

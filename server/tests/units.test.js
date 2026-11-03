@@ -125,3 +125,32 @@ test("AI model input is validated", () => {
   ];
   for (const b of bad) assert.throws(() => validate(b), { status: 400 }, JSON.stringify(b));
 });
+
+const { createOriginMatcher } = require("../utils/origins");
+
+test("CORS origins match exactly, ignoring case and a trailing slash", () => {
+  const allowed = createOriginMatcher(["https://chat.example.com", "http://localhost:3000"]);
+  assert.equal(allowed("https://chat.example.com"), true);
+  assert.equal(allowed("https://Chat.Example.com/"), true);
+  assert.equal(allowed("http://localhost:3000"), true);
+  assert.equal(allowed("http://chat.example.com"), false, "scheme must match");
+  assert.equal(allowed("https://chat.example.com.evil.com"), false);
+  assert.equal(allowed(undefined), false);
+});
+
+test("CORS wildcard patterns match one hostname label only", () => {
+  const allowed = createOriginMatcher(["https://quick-chat-*.vercel.app"]);
+  assert.equal(allowed("https://quick-chat-git-feature-agni.vercel.app"), true);
+  assert.equal(allowed("https://quick-chat-abc123.vercel.app"), true);
+  assert.equal(allowed("https://quick-chat-.vercel.app"), false, "* needs at least one character");
+  assert.equal(allowed("https://quick-chat-a.b.vercel.app"), false, "* never matches a dot");
+  assert.equal(allowed("https://evil.com/quick-chat-x.vercel.app"), false);
+  assert.equal(allowed("http://quick-chat-x.vercel.app"), false);
+  assert.equal(allowed("https://other-x.vercel.app"), false);
+});
+
+test("CORS patterns that are too broad or malformed are rejected at startup", () => {
+  for (const bad of ["https://*.app", "https://*.*", "https://foo.*.app", "*.vercel.app", "https://x.com/path"]) {
+    assert.throws(() => createOriginMatcher([bad]), /Invalid CLIENT_URL/, bad);
+  }
+});

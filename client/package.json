@@ -43,7 +43,7 @@
     ]
   },
   "engines": {
-    "node": ">=18.18"
+    "node": ">=22"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.0",

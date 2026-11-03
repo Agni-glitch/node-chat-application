@@ -15,16 +15,19 @@ const chatRouter = require("./controllers/chatController");
 const messageRouter = require("./controllers/messageController");
 const botRouter = require("./controllers/botController");
 const { notFound, errorHandler } = require("./middlewares/errorHandler");
+const { createOriginMatcher } = require("./utils/origins");
 
 const app = express();
 
 app.disable("x-powered-by");
 app.set("trust proxy", config.trustProxy);
 
+const isAllowedOrigin = createOriginMatcher(config.clientUrls);
+
 /** CORS origin check shared by Express and Socket.IO. */
 function corsOrigin(origin, callback) {
   // Requests without an Origin header (curl, health checks, same-origin) are allowed.
-  if (!origin || config.clientUrls.includes(origin.replace(/\/$/, ""))) return callback(null, true);
+  if (!origin || isAllowedOrigin(origin)) return callback(null, true);
   return callback(null, false);
 }
 

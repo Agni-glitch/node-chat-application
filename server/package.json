@@ -10,7 +10,7 @@
     "test": "node --test \"tests/**/*.test.js\""
   },
   "engines": {
-    "node": ">=18.18"
+    "node": ">=22"
   },
   "author": "Agni Roybar",
   "license": "MIT",

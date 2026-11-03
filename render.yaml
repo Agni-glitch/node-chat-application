@@ -1,0 +1,54 @@
+# Render Blueprint for the Quick Chat API (Express + Socket.IO).
+# Vercel hosts the React client; this long-running service hosts the API and WebSockets,
+# which Vercel's serverless functions can't. See docs/DEPLOYMENT.md.
+#
+# Render → New → Blueprint → pick this repo. Values marked `sync: false` are asked for
+# during setup. JWT_SECRET and AI_KEYS_SECRET are generated for you.
+
+services:
+  - type: web
+    name: quick-chat-api
+    runtime: node
+    plan: starter # the free plan sleeps after 15 min idle, which drops live sockets
+    rootDir: server
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: SERVE_CLIENT
+        value: "false"
+      # Your Vercel URL(s), comma-separated. Patterns are allowed for preview deploys:
+      #   https://quick-chat.vercel.app,https://quick-chat-*-your-team.vercel.app
+      - key: CLIENT_URL
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      # Builds the unique-email and TTL indexes on start. Safe to leave on; set to
+      # "false" once the first deploy has created them if you prefer faster boots.
+      - key: MONGO_AUTO_INDEX
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: AI_KEYS_SECRET
+        generateValue: true
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
