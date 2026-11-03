@@ -1,27 +1,58 @@
 const mongoose = require("mongoose");
+const config = require("../config/env");
+
 const messageSchema = new mongoose.Schema(
   {
     chatId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "chats",
+      required: true,
     },
     sender: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "users",
+      required: true,
     },
     text: {
       type: String,
-      require: false,
+      trim: true,
+      maxlength: [5000, "Message is too long (max 5000 characters)"],
+      default: "",
     },
     read: {
       type: Boolean,
       default: false,
     },
+    // When the recipient saw the message. Seen messages are deleted SEEN_MESSAGE_TTL_SECONDS later.
+    readAt: {
+      type: Date,
+    },
     image: {
       type: String,
-      required: false
-    }
+      required: false,
+    },
+    // Cloudinary id, so the image is deleted together with the message.
+    imagePublicId: {
+      type: String,
+      select: false,
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: {
+      transform(doc, ret) {
+        delete ret.imagePublicId;
+        delete ret.__v;
+        return ret;
+      },
+    },
+  }
 );
+
+messageSchema.index({ chatId: 1, createdAt: 1 });
+messageSchema.index({ read: 1, readAt: 1 });
+// Safety net only: the sweeper (services/messageCleanup.js) normally deletes seen messages
+// first and notifies clients. MongoDB's TTL monitor runs about once a minute.
+messageSchema.index({ readAt: 1 }, { expireAfterSeconds: config.seenMessageTtlSeconds + 60, name: "readAt_ttl" });
+
 module.exports = mongoose.model("messages", messageSchema);

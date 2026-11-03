@@ -1,199 +1,138 @@
-import React, { useEffect } from "react";
-import { useSelector } from "react-redux";
+import React, { useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-hot-toast";
 import { createNewChat } from "../../../apiCalls/chat";
-import { useDispatch } from "react-redux";
-import { hideLoader, showLoader } from "../../../redux/loaderSlice";
-import { setAllChats, setSelectedChat } from "../../../redux/userSlice";
-import moment from "moment";
-import store from "../../../redux/store";
-function UsersList({ searchKey, socket, onlineUsers }) {
-  const {
-    allUsers,
-    allChats,
-    user: currentUser,
-    selectedChat,
-  } = useSelector((state) => state.userReducer);
-  const dispatch = useDispatch();
-  const startNewChat = async (searchedUserId) => {
-    let response = null;
-    try {
-      dispatch(showLoader());
-      response = await createNewChat([currentUser._id, searchedUserId]);
-      dispatch(hideLoader());
-      if (response.success) {
-        toast.success(response.message);
-        const newChat = response.data;
-        const updatedChats = [...allChats, newChat];
-        dispatch(setAllChats(updatedChats));
-        dispatch(setSelectedChat(newChat));
-      }
-    } catch (error) {
-      toast.error(response.message);
-      dispatch(hideLoader());
-    }
-  };
-  const openChat = (selectedUserId) => {
-    const chat = allChats.find(
-      (chat) =>
-        chat.members.map((m) => m._id).includes(currentUser._id) &&
-        chat.members.map((m) => m._id).includes(selectedUserId)
-    );
-    if (chat) {
-      dispatch(setSelectedChat(chat));
-    }
-  };
-  const IsSelectedChat = (user) => {
-    if (selectedChat) {
-      return selectedChat.members.map((m) => m._id).includes(user._id);
-    }
-    return false;
-  };
-  const getLastMessage = (userId) => {
-    const chat = allChats.find((chat) =>
-      chat.members.map((m) => m._id).includes(userId)
-    );
-    if (!chat || !chat?.lastMessage?.text) {
-      return "send message";
-    } else {
-      const msgPrefix =
-        chat?.lastMessage?.sender === currentUser._id ? "You: " : "";
-      return msgPrefix + chat?.lastMessage?.text?.substring(0, 25) + "...";
-    }
-  };
-  const getLastMessageTimeStamp = (userId) => {
-    const chat = allChats.find((chat) =>
-      chat.members.map((m) => m._id).includes(userId)
-    );
-    if (!chat || !chat.lastMessage || !chat.lastMessage.createdAt) {
-      return "";
-    } else {
-      return moment(chat?.lastMessage?.createdAt).format("hh:mm A");
-    }
-  };
-  function formatName(user) {
-    let fname =
-      user.firstname.at(0).toUpperCase() +
-      user.firstname.slice(1).toLowerCase();
-    let lname =
-      user.lastname.at(0).toUpperCase() + user.lastname.slice(1).toLowerCase();
-    return fname + " " + lname;
-  }
-  useEffect(() => {
-    socket.off('set-message-count').on('set-message-count', message => {
-      const selectedChat = store.getState().userReducer.selectedChat;
-      let allChats = store.getState().userReducer.allChats;
-      if (selectedChat?._id !== message.chatId) {
-        const updatedChats = allChats.map(chat => {
-          if (chat._id === message.chatId) {
-            return {
-              ...chat,
-              unreadMessageCount: (chat?.unreadMessageCount || 0) + 1,
-              lastMessage: message
-            };
-          }
-          return chat;
-        })
-        allChats = updatedChats;
-      }
-      //find latest chat
-      const latestChat = allChats.find(chat => chat._id === message.chatId);
-      //get all other chats
-      const otherchats = allChats.filter(chat => chat._id !== message.charAt);
-      //create a new array latest chat on top and then other chats
-      allChats = [latestChat, ...otherchats];
+import { chatAdded, setSelectedChat } from "../../../redux/userSlice";
+import Avatar from "../../../components/Avatar";
+import { formatListTime, formatName, otherMember } from "../../../utils/format";
 
-      dispatch(setAllChats(allChats));
-    })
-  }, [])
-  const getUnreadMessageCount = (userId) => {
-    const chat = allChats.find(chat => chat.members.map(m => m._id).includes(userId));
-    if (chat && chat.unreadMessageCount && chat.lastMessage.sender !== currentUser._id) {
-      return <div className="unsend-message-counter">{chat.unreadMessageCount}</div>
-    } else {
-      return ""
-    }
-  }
-  function getData() {
-    if (searchKey === "") {
-      return allChats;
-    } else {
-      return allUsers.filter(user => {
-        return user.firstname.toLowerCase().includes(searchKey.toLowerCase()) ||
-          user.lastname.toLowerCase().includes(searchKey.toLowerCase())
-      })
-    }
-  }
-  return (getData() || [])
-    .map((obj) => {
-      let user = obj;
-      if (obj.members) {
-        user = obj.members.find(m => m._id !== currentUser._id)
-      }
-      return (
-        <div
-          className="user-search-filter"
-          onClick={() => openChat(user._id)}
-          key={user._id}
-        >
-          <div className="filtered-user">
-            <div
-              className={
-                !IsSelectedChat(user) ? "filter-user-display" : "selected-user"
-              }
-            >
-              {user.profilePic && (
-                <img
-                  src={user.profilePic}
-                  alt="Profile pic"
-                  className="user-profile-image"
-                  style={onlineUsers.includes(user._id) ? { border: '#82e0aa 3px solid' } : {}}
-                />
-              )}
-              {!user.profilePic && (
-                <div
-                  className={
-                    !IsSelectedChat(user)
-                      ? "user-default-avater"
-                      : "user-selected-avater"
-                  }
-                  style={onlineUsers.includes(user._id) ? { border: '#82e0aa 3px solid' } : {}}
-                >
-                  {user.firstname.charAt(0).toUpperCase() +
-                    user.lastname.charAt(0).toUpperCase()}
-                </div>
-              )}
-              <div className="filter-user-details">
-                <div className="user-display-name">
-                  {formatName(user)}
-                </div>
-                <div className="user-display-email">
-                  {getLastMessage(user._id) || user.email}
-                </div>
-              </div>
-              <div>
-                {getUnreadMessageCount(user._id)}
-                <div className="last-message-timestamp">
-                  {getLastMessageTimeStamp(user._id)}
-                </div>
-              </div>
-              {!allChats.find((chat) =>
-                chat.members.map((m) => m._id).includes(user._id)
-              ) && (
-                  <div className="user-start-chat">
-                    <button
-                      className="user-start-chat-btn"
-                      onClick={() => startNewChat(user._id)}
-                    >
-                      Start Chat
-                    </button>
-                  </div>
-                )}
-            </div>
-          </div>
-        </div>
-      );
-    });
+function lastMessagePreview(chat, me) {
+  const last = chat.lastMessage;
+  if (!last) return "Say hello 👋";
+  const prefix = last.sender === me ? "You: " : "";
+  if (last.text) return prefix + last.text;
+  if (last.image) return `${prefix}📷 Photo`;
+  return prefix;
 }
 
-export default UsersList;
+export default function UsersList({ searchKey, onDone }) {
+  const dispatch = useDispatch();
+  const { allUsers, allChats, user: me, selectedChat, onlineUsers, typing } = useSelector(
+    (state) => state.userReducer
+  );
+  const [startingWith, setStartingWith] = useState(null);
+  const query = searchKey.trim().toLowerCase();
+
+  const results = useMemo(() => {
+    if (!query) return [];
+    return allUsers.filter((u) =>
+      `${u.firstname} ${u.lastname} ${u.email}`.toLowerCase().includes(query)
+    );
+  }, [allUsers, query]);
+
+  const chatWith = (userId) => allChats.find((c) => c.members.some((m) => m._id === userId));
+
+  const openUser = async (u) => {
+    const existing = chatWith(u._id);
+    if (existing) {
+      dispatch(setSelectedChat(existing));
+      onDone();
+      return;
+    }
+    setStartingWith(u._id);
+    const res = await createNewChat(u._id);
+    setStartingWith(null);
+    if (!res.success) {
+      toast.error(res.message || "Could not start the chat");
+      return;
+    }
+    dispatch(chatAdded(res.data));
+    dispatch(setSelectedChat(res.data));
+    onDone();
+  };
+
+  if (query) {
+    if (results.length === 0) {
+      return <EmptyList icon="fa-user-times" text={`No one matches “${searchKey.trim()}”.`} />;
+    }
+    return (
+      <ul className="conversation-list">
+        {results.map((u) => {
+          const hasChat = Boolean(chatWith(u._id));
+          return (
+            <li key={u._id}>
+              <button
+                type="button"
+                className="conversation"
+                onClick={() => openUser(u)}
+                disabled={startingWith === u._id}
+              >
+                <Avatar user={u} online={onlineUsers.includes(u._id)} />
+                <span className="conversation-body">
+                  <span className="conversation-name">{formatName(u)}</span>
+                  <span className="conversation-preview">{u.email}</span>
+                </span>
+                <span className={`chip ${hasChat ? "" : "chip-accent"}`}>
+                  {startingWith === u._id ? "Starting…" : hasChat ? "Open" : "Start chat"}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
+
+  const chats = allChats.filter((c) => otherMember(c, me._id));
+  if (chats.length === 0) {
+    return <EmptyList icon="fa-comments-o" text="No conversations yet. Search for someone to start chatting." />;
+  }
+
+  return (
+    <ul className="conversation-list">
+      {chats.map((chat) => {
+        const other = otherMember(chat, me._id);
+        const unread = chat.lastMessage && chat.lastMessage.sender !== me._id ? chat.unreadMessageCount : 0;
+        const active = selectedChat?._id === chat._id;
+        const isTyping = typing[chat._id];
+        return (
+          <li key={chat._id}>
+            <button
+              type="button"
+              className={`conversation ${active ? "is-active" : ""} ${unread ? "is-unread" : ""}`}
+              onClick={() => dispatch(setSelectedChat(chat))}
+              aria-current={active ? "true" : undefined}
+            >
+              <Avatar user={other} online={onlineUsers.includes(other._id)} />
+              <span className="conversation-body">
+                <span className="conversation-row">
+                  <span className="conversation-name">{formatName(other)}</span>
+                  <span className="conversation-time">{formatListTime(chat.lastMessage?.createdAt)}</span>
+                </span>
+                <span className="conversation-row">
+                  <span className={`conversation-preview ${isTyping ? "is-typing" : ""}`}>
+                    {isTyping ? "typing…" : lastMessagePreview(chat, me._id)}
+                  </span>
+                  {unread > 0 && (
+                    <span className="badge" aria-label={`${unread} unread messages`}>
+                      {unread > 99 ? "99+" : unread}
+                    </span>
+                  )}
+                </span>
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function EmptyList({ icon, text }) {
+  return (
+    <div className="empty-list">
+      <i className={`fa ${icon}`} aria-hidden="true" />
+      <p>{text}</p>
+    </div>
+  );
+}

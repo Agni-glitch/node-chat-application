@@ -1,55 +1,60 @@
 const router = require("express").Router();
-const authMiddleware = require("./authController");
-const Chat = require("./../model/chat");
-const Message = require("./../model/message");
+const mongoose = require("mongoose");
+const authMiddleware = require("../middlewares/authmiddleware");
+const Chat = require("../model/chat");
+const Message = require("../model/message");
+const { uploadImage } = require("../cloudinary");
+const { emitToUsers } = require("../socket");
 
-router.post("/new-message", authMiddleware, async (req, res) => {
-  try {
-    // store message in message collection
-    const newMessage = new Message(req.body);
-    const savedMessage = await newMessage.save();
-    // update last message
+router.use(authMiddleware);
 
-    // const currentChat =await Chat.findById(req.body.chatId)
-    // currentChat.lastMessage = savedMessage._id;
-    // await currentChat.save()
+router.post("/new-message", async (req, res) => {
+  const chatId = req.body?.chatId;
+  const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
+  const image = req.body?.image || null;
 
-    const currentChat = await Chat.findOneAndUpdate(
-      {
-        _id: req.body.chatId,
-      },
-      {
-        lastMessage: savedMessage._id,
-        $inc: { unreadMessageCount: 1 },
-      }
-    );
-    res.status(201).send({
-      message: "Message send successfully",
-      success: true,
-      data: savedMessage,
-    });
-  } catch (error) {
-    res.status(400).send({
-      message: error.message,
-      success: false,
-    });
+  if (!mongoose.isValidObjectId(chatId)) {
+    return res.status(400).send({ message: "Invalid chat id", success: false });
   }
-});
-router.get("/get-all-messages/:chatId", authMiddleware, async (req, res) => {
-  try {
-    const allMessages = await Message.find({ chatId: req.params.chatId }).sort({
-      createdAt: 1,
-    }); //assending order
-    res.send({
-      message: "All messages fetched successfully",
-      success: true,
-      data: allMessages,
-    });
-  } catch (error) {
-    res.status(400).send({
-      message: error.message,
-      success: false,
-    });
+  if (!text && !image) {
+    return res.status(400).send({ message: "Message cannot be empty", success: false });
   }
+
+  const chat = await Chat.findOne({ _id: chatId, members: req.userId }).select("members");
+  if (!chat) {
+    return res.status(404).send({ message: "Chat not found", success: false });
+  }
+
+  const uploaded = image ? await uploadImage(image, "messages") : null;
+
+  const message = await Message.create({
+    chatId,
+    sender: req.userId, // always the authenticated user, never taken from the body
+    text,
+    image: uploaded?.url,
+    imagePublicId: uploaded?.publicId,
+  });
+
+  await Chat.updateOne({ _id: chatId }, { lastMessage: message._id, $inc: { unreadMessageCount: 1 } });
+
+  emitToUsers(chat.members, "receive-message", message);
+
+  res.status(201).send({ message: "Message sent", success: true, data: message });
 });
+
+router.get("/get-all-messages/:chatId", async (req, res) => {
+  const { chatId } = req.params;
+  if (!mongoose.isValidObjectId(chatId)) {
+    return res.status(400).send({ message: "Invalid chat id", success: false });
+  }
+
+  const isMember = await Chat.exists({ _id: chatId, members: req.userId });
+  if (!isMember) {
+    return res.status(404).send({ message: "Chat not found", success: false });
+  }
+
+  const messages = await Message.find({ chatId }).sort({ createdAt: 1 });
+  res.send({ message: "Messages fetched successfully", success: true, data: messages });
+});
+
 module.exports = router;

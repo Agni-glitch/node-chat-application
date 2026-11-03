@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            client/package-lock.json
+
+      - name: Install
+        run: npm run install:all
+
+      - name: Server tests
+        run: npm test --prefix server
+
+      - name: Client tests
+        run: npm run test:ci --prefix client
+
+      - name: Client production build
+        env:
+          CI: true
+          GENERATE_SOURCEMAP: false
+        run: npm run build --prefix client

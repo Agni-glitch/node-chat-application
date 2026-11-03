@@ -1,11 +1,10 @@
 import React from "react";
 
-function Loader() {
+export default function Loader({ fullscreen = true, label = "Loading" }) {
   return (
-    <div className="loader-overlay">
-      <div className="loader-spinner"></div>
+    <div className={fullscreen ? "loader-overlay" : "loader-inline"} role="status" aria-live="polite">
+      <div className="loader-spinner" />
+      <span className="sr-only">{label}…</span>
     </div>
   );
 }
-
-export default Loader;

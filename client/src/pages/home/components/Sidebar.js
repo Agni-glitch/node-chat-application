@@ -2,14 +2,15 @@ import React, { useState } from "react";
 import Search from "./Search";
 import UsersList from "./UsersList";
 
-function Sidebar({ socket, onlineUsers }) {
+export default function Sidebar() {
   const [searchKey, setSearchKey] = useState("");
   return (
-    <div className="app-sidebar">
-      <Search searchKey={searchKey} setSearchKey={setSearchKey} />
-      <UsersList searchKey={searchKey} socket={socket} onlineUsers={onlineUsers}/>
-    </div>
+    <aside className="sidebar" aria-label="Conversations">
+      <div className="sidebar-top">
+        <h2 className="sidebar-title">{searchKey ? "People" : "Chats"}</h2>
+        <Search searchKey={searchKey} setSearchKey={setSearchKey} />
+      </div>
+      <UsersList searchKey={searchKey} onDone={() => setSearchKey("")} />
+    </aside>
   );
 }
-
-export default Sidebar;

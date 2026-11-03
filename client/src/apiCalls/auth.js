@@ -1,17 +1,10 @@
-import { axiosInstance, url } from "./index";
-export const signupUser = async (user) => {
-  try {
-    const response = await axiosInstance.post(url+"/api/auth/signup", user);
-    return response.data;
-  } catch (error) {
-    return error;
-  }
-};
-export const loginUser = async (user) => {
-  try {
-    const response = await axiosInstance.post(url+"/api/auth/login", user);
-    return response.data;
-  } catch (err) {
-    return err;
-  }
-};
+import { request } from "./index";
+
+const post = (url, data) => request({ method: "post", url, data });
+
+export const signupUser = (user) => post("/api/auth/signup", user);
+export const loginUser = (user) => post("/api/auth/login", user);
+export const verifyEmail = (email, otp) => post("/api/auth/verify-email", { email, otp });
+export const resendOtp = (email) => post("/api/auth/resend-otp", { email });
+export const forgotPassword = (email) => post("/api/auth/forgot-password", { email });
+export const resetPassword = (email, otp, password) => post("/api/auth/reset-password", { email, otp, password });

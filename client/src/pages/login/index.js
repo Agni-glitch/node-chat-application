@@ -1,66 +1,75 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import { loginUser } from "../../apiCalls/auth";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { useDispatch } from "react-redux";
-import { hideLoader, showLoader } from "../../redux/loaderSlice";
+import { loginUser } from "../../apiCalls/auth";
+import { getToken, setToken } from "../../apiCalls";
+import AuthLayout, { PasswordField } from "../../components/AuthLayout";
+
 export default function Login() {
-  const dispatch = useDispatch();
-  const [user, setUser] = useState({
-    email: "",
-    password: "",
-  });
-  async function onFormSubmit(event) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [form, setForm] = useState({ email: location.state?.email || "", password: "" });
+  const [submitting, setSubmitting] = useState(false);
+
+  if (getToken()) return <Navigate to="/" replace />;
+
+  async function onSubmit(event) {
     event.preventDefault();
-    let response = null;
-    try {
-      dispatch(showLoader());
-      response = await loginUser(user);
-      dispatch(hideLoader());
-      if (response.success) {
-        toast.success(response.message);
-        localStorage.setItem("token", response.token);
-        window.location.href = "/";
-      } else {
-        toast.error(response.message);
-      }
-    } catch (error) {
-      dispatch(hideLoader());
-      toast.error(response.message);
+    setSubmitting(true);
+    const res = await loginUser({ email: form.email.trim(), password: form.password });
+    setSubmitting(false);
+    if (res.needsVerification) {
+      toast(res.message, { icon: "✉️" });
+      navigate("/verify-email", { state: { email: res.data.email, retryAfter: res.data.retryAfter } });
+      return;
     }
+    if (!res.success) {
+      toast.error(res.message || "Login failed");
+      return;
+    }
+    setToken(res.token);
+    toast.success("Welcome back!");
+    navigate("/", { replace: true });
   }
+
   return (
-    <div className="container">
-      <div className="container-back-img"></div>
-      <div className="container-back-color"></div>
-      <div className="card">
-        <div className="card_title">
-          <h1>Login Here</h1>
+    <AuthLayout
+      title="Welcome back"
+      subtitle="Log in to continue your conversations."
+      footer={
+        <>
+          Don't have an account? <Link to="/signup">Create one</Link>
+        </>
+      }
+    >
+      <form className="form" onSubmit={onSubmit} noValidate={false}>
+        <div className="field">
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            required
+            autoFocus
+          />
         </div>
-        <div className="form">
-          <form onSubmit={onFormSubmit}>
-            <input
-              type="email"
-              placeholder="Email"
-              value={user.email}
-              onChange={(e) => setUser({ ...user, email: e.target.value })}
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={user.password}
-              onChange={(e) => setUser({ ...user, password: e.target.value })}
-            />
-            <button>Login</button>
-          </form>
+        <PasswordField
+          id="password"
+          autoComplete="current-password"
+          value={form.password}
+          onChange={(e) => setForm({ ...form, password: e.target.value })}
+        />
+        <div className="form-row-end">
+          <Link to="/forgot-password" state={{ email: form.email.trim() }} className="small-link">
+            Forgot password?
+          </Link>
         </div>
-        <div className="card_terms">
-          <span>
-            Don't have an account yet?
-            <Link to="/signup">Signup Here</Link>
-          </span>
-        </div>
-      </div>
-    </div>
+        <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
+          {submitting ? <span className="btn-spinner" /> : "Log in"}
+        </button>
+      </form>
+    </AuthLayout>
   );
 }

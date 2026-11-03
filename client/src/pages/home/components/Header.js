@@ -1,40 +1,31 @@
 import React from "react";
 import { useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
-function Header({ socket }) {
-  const { user } = useSelector((state) => state.userReducer);
-  const navigate = useNavigate();
-  function getFullName() {
-    let fname = user?.firstname.at(0).toUpperCase() + user?.firstname.slice(1).toLowerCase()
-    let lname = user?.lastname.at(0).toUpperCase() + user?.lastname.slice(1).toLowerCase()
-    return fname + ' ' + lname;
-  }
-  function getInitials() {
-    let f = user?.firstname.toUpperCase()[0];
-    let l = user?.lastname.toUpperCase()[0];
-    return f + l;
-  }
-  const logout = () => {
-    localStorage.removeItem('token');
-    navigate('/login');
-    socket.emit('user-offline', user._id);
-  }
+import { Link } from "react-router-dom";
+import Avatar from "../../../components/Avatar";
+import useLogout from "../../../hooks/useLogout";
+import { formatName } from "../../../utils/format";
+
+export default function Header() {
+  const user = useSelector((state) => state.userReducer.user);
+  const logout = useLogout();
+
   return (
-    <div className="app-header">
-      <div className="app-logo">
-        <i className="fa fa-comments" aria-hidden="true"></i>
-        Quick Chat
-      </div>
-      <div className="app-user-profile">
-        {user?.profilePic && <img className="logged-user-profile-pic" src={user?.profilePic} alt="profile-pic" onClick={() => navigate('/profile')} />}
-        {!user?.profilePic && <div className="logged-user-profile-pic" onClick={() => navigate('/profile')}>{getInitials()}</div>}
-        <div className="logged-user-name">{getFullName()}</div>
-        <button className="logout-button" onClick={logout}>
-          <i className="fa fa-power-off"></i>
+    <header className="app-header">
+      <Link to="/" className="brand" aria-label="Quick Chat home">
+        <span className="brand-mark">
+          <i className="fa fa-comments" aria-hidden="true" />
+        </span>
+        <span className="brand-name">Quick Chat</span>
+      </Link>
+      <div className="header-actions">
+        <Link to="/profile" className="header-profile" title="Your profile">
+          <Avatar user={user} size={36} />
+          <span className="header-profile-name">{formatName(user)}</span>
+        </Link>
+        <button type="button" className="icon-btn" onClick={logout} title="Log out" aria-label="Log out">
+          <i className="fa fa-sign-out" aria-hidden="true" />
         </button>
       </div>
-    </div>
+    </header>
   );
 }
-
-export default Header;
