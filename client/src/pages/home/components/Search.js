@@ -1,17 +1,22 @@
 import React from "react";
 
-function Search({ searchKey, setSearchKey }) {
+export default function Search({ searchKey, setSearchKey }) {
   return (
-    <div className="user-search-area">
+    <div className="search">
+      <i className="fa fa-search search-icon" aria-hidden="true" />
       <input
-        type="text"
-        className="user-search-text"
+        type="search"
+        className="search-input"
+        placeholder="Search people by name or email"
+        aria-label="Search people"
         value={searchKey}
         onChange={(e) => setSearchKey(e.target.value)}
       />
-      <i className="fa fa-search user-search-btn" aria-hidden="true"></i>
+      {searchKey && (
+        <button type="button" className="search-clear" onClick={() => setSearchKey("")} aria-label="Clear search">
+          <i className="fa fa-times" aria-hidden="true" />
+        </button>
+      )}
     </div>
   );
 }
-
-export default Search;

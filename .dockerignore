@@ -1,0 +1,11 @@
+**/node_modules
+**/build
+**/.env
+**/.env.*
+!**/.env.example
+server/config.env
+.git
+.github
+.vscode
+*.log
+docs

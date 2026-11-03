@@ -1,83 +1,93 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import { signupUser } from "../../apiCalls/auth";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { useDispatch } from "react-redux";
-import { hideLoader, showLoader } from "../../redux/loaderSlice";
+import { signupUser } from "../../apiCalls/auth";
+import { getToken } from "../../apiCalls";
+import AuthLayout, { PasswordField } from "../../components/AuthLayout";
+
 export default function Signup() {
-  const dispatch = useDispatch();
-  const [user, setUser] = useState({
-    firstname: "",
-    lastname: "",
-    email: "",
-    password: "",
-  });
-  async function onFormSubmit(event) {
+  const navigate = useNavigate();
+  const [form, setForm] = useState({ firstname: "", lastname: "", email: "", password: "" });
+  const [submitting, setSubmitting] = useState(false);
+
+  if (getToken()) return <Navigate to="/" replace />;
+
+  const update = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+
+  async function onSubmit(event) {
     event.preventDefault();
-    let response = null;
-    try {
-      dispatch(showLoader());
-      response = await signupUser(user);
-      dispatch(hideLoader());
-      if (response.success) {
-        toast.success(response.message);
-        window.location.href = "/login";
-      } else {
-        toast.error(response.message);
-      }
-    } catch (error) {
-      dispatch(hideLoader());
-      toast.error(response.message);
+    if (form.password.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
     }
+    setSubmitting(true);
+    const payload = {
+      firstname: form.firstname.trim(),
+      lastname: form.lastname.trim(),
+      email: form.email.trim(),
+      password: form.password,
+    };
+    const res = await signupUser(payload);
+    setSubmitting(false);
+    if (!res.success) {
+      toast.error(res.message || "Sign up failed");
+      return;
+    }
+    toast.success(res.message || "Check your inbox for a verification code");
+    navigate("/verify-email", { state: { email: res.data.email, retryAfter: res.data.retryAfter } });
   }
+
   return (
-    <div className="container">
-      <div className="container-back-img"></div>
-      <div className="cointner-back-color"></div>
-      <div className="card">
-        <div className="card_title">
-          <h1>Create Account</h1>
-        </div>
-        <div className="form">
-          <form onSubmit={onFormSubmit}>
-            <div className="column">
-              <input
-                type="text"
-                placeholder="First Name"
-                value={user.firstname}
-                onChange={(e) =>
-                  setUser({ ...user, firstname: e.target.value })
-                }
-              />
-              <input
-                type="text"
-                placeholder="Last Name"
-                value={user.lastname}
-                onChange={(e) => setUser({ ...user, lastname: e.target.value })}
-              />
-            </div>
+    <AuthLayout
+      title="Create your account"
+      subtitle="We'll email you a code to verify your address."
+      footer={
+        <>
+          Already have an account? <Link to="/login">Log in</Link>
+        </>
+      }
+    >
+      <form className="form" onSubmit={onSubmit}>
+        <div className="field-row">
+          <div className="field">
+            <label htmlFor="firstname">First name</label>
             <input
-              type="email"
-              placeholder="Email"
-              value={user.email}
-              onChange={(e) => setUser({ ...user, email: e.target.value })}
+              id="firstname"
+              autoComplete="given-name"
+              value={form.firstname}
+              onChange={update("firstname")}
+              maxLength={50}
+              required
+              autoFocus
             />
+          </div>
+          <div className="field">
+            <label htmlFor="lastname">Last name</label>
             <input
-              type="password"
-              placeholder="Password"
-              value={user.password}
-              onChange={(e) => setUser({ ...user, password: e.target.value })}
+              id="lastname"
+              autoComplete="family-name"
+              value={form.lastname}
+              onChange={update("lastname")}
+              maxLength={50}
+              required
             />
-            <button>Sign Up</button>
-          </form>
+          </div>
         </div>
-        <div className="card_terms">
-          <span>
-            Already have an account?
-            <Link to="/login">Login Here</Link>
-          </span>
+        <div className="field">
+          <label htmlFor="email">Email</label>
+          <input id="email" type="email" autoComplete="email" value={form.email} onChange={update("email")} required />
         </div>
-      </div>
-    </div>
+        <PasswordField
+          id="password"
+          autoComplete="new-password"
+          value={form.password}
+          onChange={update("password")}
+          hint="At least 8 characters."
+        />
+        <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
+          {submitting ? <span className="btn-spinner" /> : "Create account"}
+        </button>
+      </form>
+    </AuthLayout>
   );
 }

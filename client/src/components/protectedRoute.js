@@ -1,69 +1,61 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { getAllUser, getLoggedUser } from "../apiCalls/users";
-import { useDispatch } from "react-redux";
-import { hideLoader, showLoader } from "../redux/loaderSlice";
+import { useEffect, useState } from "react";
+import { Navigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import toast from "react-hot-toast";
-import { setAllUsers, setUser, setAllChats } from "../redux/userSlice";
+import { getAllUser, getAppConfig, getLoggedUser } from "../apiCalls/users";
 import { getAllChats } from "../apiCalls/chat";
+import { clearToken, getToken } from "../apiCalls";
+import { setAllChats, setAllUsers, setAppConfig, setUser } from "../redux/userSlice";
+import Loader from "./Loader";
+import useChatSocket from "../hooks/useChatSocket";
 
-function ProtectedRoute({ children }) {
+export default function ProtectedRoute({ children }) {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const getLoggedInUser = async () => {
-    let response = null;
-    try {
-      dispatch(showLoader());
-      response = await getLoggedUser();
-      dispatch(hideLoader());
-      if (response.success) {
-        dispatch(setUser(response.data));
-      } else {
-        toast.error(response.message);
-        navigate("/login");
-      }
-    } catch (error) {
-      dispatch(hideLoader());
-      navigate("/login");
-    }
-  };
-  const getAllUsersFromDB = async () => {
-    let response = null;
-    try {
-      dispatch(showLoader());
-      response = await getAllUser();
-      dispatch(hideLoader());
-      if (response.success) {
-        dispatch(setAllUsers(response.data));
-      } else {
-        toast.error(response.message);
-        navigate("/login");
-      }
-    } catch (error) {
-      dispatch(hideLoader());
-      navigate("/login");
-    }
-  };
-  const getCurrentUserChats = async () => {
+  const user = useSelector((state) => state.userReducer.user);
+  const [status, setStatus] = useState(user ? "ready" : "loading");
+  const hasToken = Boolean(getToken());
 
-    try {
-      const response = await getAllChats();
-      if(response.success){
-        dispatch(setAllChats(response.data));
-      }
-    } catch (error) {
-      navigate("/login");
-    }
-  };
   useEffect(() => {
-    if (localStorage.getItem("token")) {
-      getAllUsersFromDB();
-      getLoggedInUser();
-      getCurrentUserChats();
-    } else {
-      navigate("/login");
-    }
-  }, []);
-  return <div>{children}</div>;
+    if (!hasToken || user) return;
+    let cancelled = false;
+    (async () => {
+      const [me, users, chats, appConfig] = await Promise.all([
+        getLoggedUser(),
+        getAllUser(),
+        getAllChats(),
+        getAppConfig(),
+      ]);
+      if (cancelled) return;
+      if (appConfig.success) dispatch(setAppConfig(appConfig.data));
+      if (!me.success) {
+        clearToken();
+        toast.error(me.message || "Please log in again");
+        setStatus("unauthenticated");
+        return;
+      }
+      dispatch(setUser(me.data));
+      if (users.success) dispatch(setAllUsers(users.data));
+      if (chats.success) dispatch(setAllChats(chats.data));
+      if (!users.success || !chats.success) toast.error("Some data could not be loaded. Try refreshing.");
+      setStatus("ready");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, hasToken, user]);
+
+  if (!hasToken || status === "unauthenticated") return <Navigate to="/login" replace />;
+  if (!user) return <Loader label="Loading your chats" />;
+  return (
+    <>
+      <RealtimeBridge />
+      {children}
+    </>
+  );
 }
-export default ProtectedRoute;
+
+/** Keeps the socket listeners alive on every authenticated page. */
+function RealtimeBridge() {
+  useChatSocket();
+  return null;
+}
