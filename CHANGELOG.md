@@ -1,5 +1,41 @@
 # Changelog
 
+## 2.3.0: group chats
+
+### Added
+- **Group chats** (`POST /api/chat/groups`) following the same rules as direct chats:
+  - a message counts as seen only when **every other member** has seen it, and then disappears 2 minutes later;
+  - closing a group deletes every message the whole group has seen; unseen messages stay;
+  - `@mentions` call the sender's own AI models, and replies follow the same rules.
+- Per-member unread badges, "Ben is typing…", sender names on bubbles, and "Seen by 1 of 2" / "Seen by everyone" ticks.
+- Admin controls: rename, add and remove members. Anyone can leave; the admin role is handed over automatically;
+  empty groups are deleted with their messages.
+- "New group" dialog with a searchable member picker, a group info panel, and groups in search results.
+- `chat-updated` socket event; `GROUP_MAX_MEMBERS` setting.
+
+## 2.2.0: AI models in chat
+
+### Added
+- **Bring-your-own AI models.** Users add chat or image models (OpenAI, Anthropic, Google Gemini, or any
+  OpenAI-compatible API) with a custom name, model id, API key and optional personality on the new
+  **AI models** page, and can test them there.
+- **Private AI chats** with any of your models, with short conversation history.
+- **@mentions in chats**: `@Alen …` calls your model inside a conversation with another person, with an `@`
+  autocomplete. Replies are labeled "Alen (gpt-5.5) · for {name}". Only the asker's own models can be called,
+  and only the mention message is sent to the provider.
+- **Image generation** into the chat. Every image (generated or shared) has **Open in new tab** and **Download** buttons.
+- Live "thinking…/drawing…" indicators (`ai-typing`) and owner-only error toasts (`ai-error`).
+- AI outputs are kept short (instructions, token cap and trimming) and **disappear like other seen messages**.
+
+### Security
+- Provider keys are encrypted at rest (AES-256-GCM, `AI_KEYS_SECRET`) and never sent to the browser.
+- Custom endpoints are SSRF-guarded: public https only in production, private addresses rejected at
+  DNS lookup time, no redirects, response size and time limits.
+- Per-user AI rate limit and concurrency cap.
+
+### Fixed
+- Caret position after inserting a mention; opening inline images in a new tab.
+
 ## 2.1.0 — verified accounts, disappearing messages, profile links
 
 ### Added

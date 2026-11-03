@@ -64,6 +64,7 @@ const config = {
     maxAttempts: Number(process.env.OTP_MAX_ATTEMPTS) || 5,
     resendCooldownSeconds: Number(process.env.OTP_RESEND_COOLDOWN_SECONDS) || 60,
   },
+  groupMaxMembers: Number(process.env.GROUP_MAX_MEMBERS) || 50,
   unverifiedAccountTtlHours: Number(process.env.UNVERIFIED_ACCOUNT_TTL_HOURS) || 24,
   emailMxCheck: process.env.EMAIL_MX_CHECK ? process.env.EMAIL_MX_CHECK === "true" : !isTest,
 
@@ -80,6 +81,27 @@ const config = {
 config.cloudinary.enabled = Boolean(
   config.cloudinary.cloudName && config.cloudinary.apiKey && config.cloudinary.apiSecret
 );
+
+// AI models (bring your own API key)
+const aiKeysSecret = (process.env.AI_KEYS_SECRET || "").trim();
+config.ai = {
+  // Encrypts users' provider API keys at rest. Required in production for AI features.
+  keysSecret: aiKeysSecret || (isProduction ? "" : `dev-only:${jwtSecret}`),
+  maxOutputTokens: Number(process.env.AI_MAX_OUTPUT_TOKENS) || 800,
+  maxReplyChars: Number(process.env.AI_MAX_REPLY_CHARS) || 500,
+  requestTimeoutMs: (Number(process.env.AI_REQUEST_TIMEOUT_SECONDS) || 90) * 1000,
+  ratePerMinute: Number(process.env.AI_RATE_LIMIT_PER_MINUTE) || 20,
+  maxBotsPerUser: Number(process.env.AI_MAX_BOTS_PER_USER) || 10,
+  historyMessages: Number(process.env.AI_HISTORY_MESSAGES) || 10,
+  // Allow custom endpoints on localhost/private networks (e.g. a local Ollama). Off in production.
+  allowPrivateEndpoints: process.env.ALLOW_PRIVATE_AI_ENDPOINTS
+    ? process.env.ALLOW_PRIVATE_AI_ENDPOINTS === "true"
+    : !isProduction,
+};
+config.ai.enabled = Boolean(config.ai.keysSecret);
+if (isProduction && aiKeysSecret && aiKeysSecret.length < 32) {
+  throw new Error("AI_KEYS_SECRET must be at least 32 characters");
+}
 
 config.smtp.enabled = Boolean(config.smtp.host);
 if (isProduction && !config.smtp.enabled) {

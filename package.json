@@ -1,6 +1,6 @@
 {
   "name": "quick-chat",
-  "version": "2.1.0",
+  "version": "2.3.0",
   "description": "Real-time chat application built with MongoDB, Express, React, Redux and Socket.IO",
   "private": true,
   "license": "MIT",

@@ -28,11 +28,14 @@ You can deploy them as **one service** (simplest, no CORS) or as **two services*
    unverified sign-ups and seen messages. If existing data has duplicate emails
    (or mixed-case duplicates), index creation fails; clean those up first.
    If you later change `SEEN_MESSAGE_TTL_SECONDS`, drop the `readAt_ttl` index so it is rebuilt.
-3. **Configure email (SMTP).** Production refuses to start without `SMTP_HOST`, because
+3. **Set `AI_KEYS_SECRET`** (≥ 32 random characters) to enable AI models. It encrypts users' provider API keys.
+   Keep it stable and secret: changing it makes stored keys unreadable, and users would have to re-enter them.
+   Without it the app works normally, but AI features are disabled.
+4. **Configure email (SMTP).** Production refuses to start without `SMTP_HOST`, because
    nobody could verify an account or reset a password. Any SMTP provider works (SendGrid,
    Mailgun, Resend, Amazon SES, Brevo, Gmail with an app password). Set up SPF/DKIM for
    your sending domain so the codes don't land in spam.
-4. **Know what happens to existing data on the first start of this version:**
+5. **Know what happens to existing data on the first start of this version:**
    - Messages that were already seen get their 2-minute timer started at boot, so
      **existing seen messages are deleted about 2 minutes after the first deploy.** Back up first if you need them.
    - Existing users must verify their email by code the next time they log in, and
@@ -68,6 +71,7 @@ SMTP_PORT=587
 SMTP_USER=...
 SMTP_PASS=...
 MAIL_FROM="Quick Chat <no-reply@yourdomain.com>"
+AI_KEYS_SECRET=...        # ≥ 32 chars, enables AI models
 # CLIENT_URL is optional here; add other origins if anything else calls the API.
 ```
 
@@ -126,6 +130,8 @@ Vercel: `rewrites` in `vercel.json`).
 - [ ] `JWT_SECRET` ≥ 32 random characters
 - [ ] `CLIENT_URL` lists exactly your front-end origin(s), or `SERVE_CLIENT=true`
 - [ ] Indexes built once with `MONGO_AUTO_INDEX=true`
+- [ ] `AI_KEYS_SECRET` set (if you want AI models) and backed up somewhere safe
+- [ ] Cloudinary configured (required for AI image generation in production)
 - [ ] SMTP configured and a test verification email received (check spam / SPF / DKIM)
 - [ ] Backed up any existing seen messages you want to keep (they're deleted after the first start)
 - [ ] Health check pointed at `/api/health`
@@ -139,7 +145,10 @@ Vercel: `rewrites` in `vercel.json`).
   and a shared presence store before scaling horizontally. Rate-limit counters are
   also per-instance. The message-cleanup job is safe to run on several instances
   (deletes are idempotent), but each instance only notifies its own sockets unless
-  you add the Redis adapter.
+  you add the Redis adapter. AI rate limits are also per-instance.
+- AI requests are made by the server with each user's own key, so provider costs go to that user.
+  Custom `openai-compatible` endpoints are restricted to public https addresses in production
+  (DNS is checked at connect time), so users can't make your server call internal services.
 - Images are stored in Cloudinary; MongoDB only stores their URLs. Messages from
   older versions that embedded base64 images still display.
 - `GET /api/message/get-all-messages/:chatId` returns the whole history. Add

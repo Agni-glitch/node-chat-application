@@ -36,6 +36,25 @@ async function uploadImage(dataUrl, subfolder) {
   return { url: result.secure_url, publicId: result.public_id };
 }
 
+/**
+ * Stores an AI-generated image (base64 or a provider URL) and returns { url, publicId }.
+ * Without Cloudinary, development falls back to an inline data URL so the feature can be tried locally.
+ */
+async function storeGeneratedImage({ b64, mime = "image/png", url }) {
+  if (config.cloudinary.enabled) {
+    const source = b64 ? `data:${mime};base64,${b64}` : url;
+    const result = await cloudinary.uploader.upload(source, {
+      folder: `${config.cloudinary.folder}/ai`,
+      resource_type: "image",
+    });
+    return { url: result.secure_url, publicId: result.public_id };
+  }
+  if (!config.isProduction && b64) {
+    return { url: `data:${mime};base64,${b64}`, publicId: undefined };
+  }
+  throw new HttpError(503, "Image generation needs Cloudinary to be configured on the server");
+}
+
 /** Best-effort deletion of uploaded images (errors are logged, never thrown). */
 async function deleteImages(publicIds) {
   const ids = publicIds.filter(Boolean);
@@ -49,4 +68,4 @@ async function deleteImages(publicIds) {
   }
 }
 
-module.exports = { cloudinary, uploadImage, deleteImages };
+module.exports = { cloudinary, uploadImage, storeGeneratedImage, deleteImages };

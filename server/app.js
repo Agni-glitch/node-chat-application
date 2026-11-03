@@ -13,6 +13,7 @@ const authRouter = require("./controllers/authController");
 const userRouter = require("./controllers/userController");
 const chatRouter = require("./controllers/chatController");
 const messageRouter = require("./controllers/messageController");
+const botRouter = require("./controllers/botController");
 const { notFound, errorHandler } = require("./middlewares/errorHandler");
 
 const app = express();
@@ -81,6 +82,7 @@ app.get("/api/config", (req, res) => {
       seenMessageTtlSeconds: config.seenMessageTtlSeconds,
       maxImageMb: Math.round(config.maxImageBytes / 1024 / 1024),
       otpResendCooldownSeconds: config.otp.resendCooldownSeconds,
+      aiEnabled: config.ai.enabled,
       serverTime: Date.now(),
     },
   });
@@ -91,6 +93,7 @@ app.use("/api/auth", authLimiter, authRouter);
 app.use("/api/user", userRouter);
 app.use("/api/chat", chatRouter);
 app.use("/api/message", messageRouter);
+app.use("/api/bots", botRouter);
 app.use("/api", notFound);
 
 // Optionally serve the React production build from the same origin.

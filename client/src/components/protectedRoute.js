@@ -4,8 +4,9 @@ import { useDispatch, useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import { getAllUser, getAppConfig, getLoggedUser } from "../apiCalls/users";
 import { getAllChats } from "../apiCalls/chat";
+import { getBots } from "../apiCalls/bots";
 import { clearToken, getToken } from "../apiCalls";
-import { setAllChats, setAllUsers, setAppConfig, setUser } from "../redux/userSlice";
+import { setAllChats, setAllUsers, setAppConfig, setBots, setUser } from "../redux/userSlice";
 import Loader from "./Loader";
 import useChatSocket from "../hooks/useChatSocket";
 
@@ -19,11 +20,12 @@ export default function ProtectedRoute({ children }) {
     if (!hasToken || user) return;
     let cancelled = false;
     (async () => {
-      const [me, users, chats, appConfig] = await Promise.all([
+      const [me, users, chats, appConfig, bots] = await Promise.all([
         getLoggedUser(),
         getAllUser(),
         getAllChats(),
         getAppConfig(),
+        getBots(),
       ]);
       if (cancelled) return;
       if (appConfig.success) dispatch(setAppConfig(appConfig.data));
@@ -36,6 +38,7 @@ export default function ProtectedRoute({ children }) {
       dispatch(setUser(me.data));
       if (users.success) dispatch(setAllUsers(users.data));
       if (chats.success) dispatch(setAllChats(chats.data));
+      if (bots.success) dispatch(setBots(bots.data));
       if (!users.success || !chats.success) toast.error("Some data could not be loaded. Try refreshing.");
       setStatus("ready");
     })();

@@ -28,3 +28,17 @@ export function closeChatOnUnload(chatId) {
     // ignore: best effort while the page unloads
   }
 }
+
+// ---- groups
+export const createGroup = (name, memberIds) =>
+  request({ method: "post", url: "/api/chat/groups", data: { name, memberIds } });
+
+export const renameGroup = (chatId, name) =>
+  request({ method: "put", url: `/api/chat/groups/${chatId}`, data: { name } });
+
+export const addGroupMembers = (chatId, userIds) =>
+  request({ method: "post", url: `/api/chat/groups/${chatId}/members`, data: { userIds } });
+
+/** Removes a member (admins), or leaves the group when `userId` is yourself. */
+export const removeGroupMember = (chatId, userId) =>
+  request({ method: "delete", url: `/api/chat/groups/${chatId}/members/${userId}` });

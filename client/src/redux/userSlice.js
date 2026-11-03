@@ -8,8 +8,10 @@ const initialState = {
   messages: [],
   messagesLoading: false,
   onlineUsers: [],
-  typing: {}, // chatId -> true while the other member is typing
-  appConfig: { seenMessageTtlSeconds: 120, clockOffsetMs: 0 },
+  typing: {}, // chatId -> id of the member currently typing
+  appConfig: { seenMessageTtlSeconds: 120, clockOffsetMs: 0, aiEnabled: true },
+  bots: [], // the user's own AI models
+  aiBusy: {}, // chatId -> [{ name, model, kind }] models currently generating
 };
 
 const replaceUser = (list, updated) => list.map((u) => (u._id === updated._id ? { ...u, ...updated } : u));
@@ -71,25 +73,70 @@ const userSlice = createSlice({
       if (last && (last._id === message._id || Date.parse(last.createdAt) > Date.parse(message.createdAt))) return;
 
       chat.lastMessage = message;
-      if (message.sender !== me) {
+      if (chat.type === "ai") {
+        chat.unreadMessageCount = 0;
+      } else if (chat.type === "group") {
+        // Groups track unread per member: only other people's messages count, and not while open.
+        if (message.sender !== me) chat.unreadMessageCount = isOpen ? 0 : (chat.unreadMessageCount || 0) + 1;
+      } else if (message.sender !== me) {
         chat.unreadMessageCount = isOpen ? 0 : (chat.unreadMessageCount || 0) + 1;
       } else {
         chat.unreadMessageCount = (chat.unreadMessageCount || 0) + 1;
       }
       state.allChats.splice(index, 1);
       state.allChats.unshift(chat);
-      if (state.typing[message.chatId] && message.sender !== me) delete state.typing[message.chatId];
+      if (state.typing[message.chatId] === message.sender || (chat.type !== "group" && message.sender !== me)) {
+        delete state.typing[message.chatId];
+      }
     },
     messagesRead: (state, action) => {
-      const { chatId, readerId } = action.payload;
+      const { chatId, readerId, messageIds } = action.payload;
       const readAt = action.payload.readAt || new Date().toISOString();
       const me = state.user?._id;
       const chat = findChat(state, chatId);
       const iAmReader = readerId === me;
-      // The reader saw the other member's messages: mark them and start their timers.
+      const chatType = (chat || state.selectedChat)?.type;
+      const isAiChat = chatType === "ai";
+      // Groups: record who has seen what; messageIds are the ones now seen by everyone.
+      if (action.payload.group || chatType === "group") {
+        const done = new Set(messageIds || []);
+        if (state.selectedChat?._id === chatId) {
+          state.messages.forEach((m) => {
+            if (readerId && m.sender !== readerId) {
+              m.readBy = m.readBy || [];
+              if (!m.readBy.includes(readerId)) m.readBy.push(readerId);
+            }
+            if (done.has(m._id) && !m.read) {
+              m.read = true;
+              m.readAt = readAt;
+            }
+          });
+        }
+        if (chat) {
+          if (iAmReader) chat.unreadMessageCount = 0;
+          if (chat.lastMessage && done.has(chat.lastMessage._id)) chat.lastMessage.read = true;
+        }
+        return;
+      }
+      // An AI model read specific prompts (private AI chats).
+      if (messageIds) {
+        const ids = new Set(messageIds);
+        if (state.selectedChat?._id === chatId) {
+          state.messages.forEach((m) => {
+            if (ids.has(m._id) && !m.read) {
+              m.read = true;
+              m.readAt = readAt;
+            }
+          });
+        }
+        return;
+      }
+      // The reader saw the other side's messages: mark them and start their timers.
+      // In an AI chat the "other side" is the model's replies (their sender is the user).
       if (state.selectedChat?._id === chatId) {
         state.messages.forEach((m) => {
-          const affected = iAmReader ? m.sender !== me : m.sender === me;
+          const fromOther = isAiChat ? Boolean(m.bot) : m.sender !== me;
+          const affected = iAmReader ? fromOther : m.sender === me;
           if (affected && !m.read) {
             m.read = true;
             m.readAt = readAt;
@@ -132,8 +179,39 @@ const userSlice = createSlice({
     },
     setTyping: (state, action) => {
       const { chatId, value } = action.payload;
-      if (value) state.typing[chatId] = true;
+      if (value) state.typing[chatId] = value === true ? true : value;
       else delete state.typing[chatId];
+    },
+    setBots: (state, action) => {
+      state.bots = action.payload;
+    },
+    botSaved: (state, action) => {
+      const bot = action.payload;
+      const i = state.bots.findIndex((b) => b._id === bot._id);
+      if (i >= 0) state.bots[i] = bot;
+      else state.bots.push(bot);
+      state.allChats.forEach((c) => {
+        if (c.bot?._id === bot._id) c.bot = bot;
+      });
+      if (state.selectedChat?.bot?._id === bot._id) state.selectedChat.bot = bot;
+    },
+    botRemoved: (state, action) => {
+      state.bots = state.bots.filter((b) => b._id !== action.payload);
+    },
+    chatRemoved: (state, action) => {
+      const chatId = action.payload;
+      state.allChats = state.allChats.filter((c) => c._id !== chatId);
+      if (state.selectedChat?._id === chatId) {
+        state.selectedChat = null;
+        state.messages = [];
+      }
+    },
+    setAiBusy: (state, action) => {
+      const { chatId, bot, active } = action.payload;
+      const list = (state.aiBusy[chatId] || []).filter((b) => b.name !== bot.name);
+      if (active) list.push(bot);
+      if (list.length) state.aiBusy[chatId] = list;
+      else delete state.aiBusy[chatId];
     },
     resetState: () => initialState,
   },
@@ -155,6 +233,11 @@ export const {
   setAppConfig,
   setOnlineUsers,
   setTyping,
+  setBots,
+  botSaved,
+  botRemoved,
+  chatRemoved,
+  setAiBusy,
   resetState,
 } = userSlice.actions;
 

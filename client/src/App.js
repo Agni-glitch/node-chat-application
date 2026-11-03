@@ -6,6 +6,7 @@ import Signup from "./pages/signup";
 import VerifyEmail from "./pages/verify-email";
 import ForgotPassword from "./pages/forgot-password";
 import Profile from "./pages/profile";
+import Models from "./pages/models";
 import ProtectedRoute from "./components/protectedRoute";
 
 export default function App() {
@@ -23,6 +24,7 @@ export default function App() {
         >
           <Route path="/" element={<Home />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/models" element={<Models />} />
         </Route>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />

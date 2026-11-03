@@ -18,6 +18,10 @@ export default function Header() {
         <span className="brand-name">Quick Chat</span>
       </Link>
       <div className="header-actions">
+        <Link to="/models" className="header-ai-link" title="Your AI models">
+          <i className="fa fa-android" aria-hidden="true" />
+          <span className="header-ai-label">AI models</span>
+        </Link>
         <Link to="/profile" className="header-profile" title="Your profile">
           <Avatar user={user} size={36} />
           <span className="header-profile-name">{formatName(user)}</span>

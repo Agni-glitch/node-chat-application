@@ -15,6 +15,15 @@ A real-time one-to-one chat app built with **MongoDB, Express, React, Redux Tool
 - **Disappearing messages**: a seen message is permanently deleted 2 minutes after it's read
   (with a live countdown), and every seen message in a chat is deleted as soon as either member closes it
 - **Profile links** (Instagram, X/Twitter, Facebook, LinkedIn, GitHub, YouTube, TikTok, website), each checked against the platform's domain and shown in a contact panel
+- **Bring-your-own AI models**: add chat or image models (OpenAI, Anthropic, Google Gemini, or any
+  OpenAI-compatible API such as OpenRouter, Groq, Together or Ollama) under a custom name. Chat with a model
+  privately, or call it inside any conversation with `@Name`, like `@Alen what's a good pizza place?`.
+  Replies are short, generated images can be opened in a new tab or downloaded, and every AI output
+  disappears like other seen messages. Keys are encrypted at rest, and only the owner can call their models.
+- **Group chats** with the same rules: a message disappears 2 minutes after **every** member has seen it,
+  and closing the group deletes everything the group has seen. Per-member unread badges, "Ben is typing…",
+  sender names, "Seen by 1 of 2 → everyone" ticks, `@mentions` of your AI models, and admin controls
+  (rename, add/remove members). Anyone can leave, and the admin role passes on automatically.
 - Real-time messaging over Socket.IO, with resync after reconnecting
 - Read receipts, unread badges (also shown in the browser tab title) and typing indicators
 - Online presence that tracks multiple tabs and devices
@@ -42,8 +51,8 @@ A real-time one-to-one chat app built with **MongoDB, Express, React, Redux Tool
 │   ├── controllers/        auth, user, chat, message routers
 │   ├── middlewares/        JWT auth, error handling
 │   ├── model/              Mongoose models
-│   ├── services/           messageCleanup (disappearing-message sweeper)
-│   ├── utils/              OTP, mailer, validation, social-link rules
+│   ├── services/           messageCleanup (disappearing-message sweeper), ai/ (providers + @mentions)
+│   ├── utils/              OTP, mailer, validation, social-link rules, key encryption, SSRF-safe HTTP
 │   ├── socket.js           Socket.IO auth, presence, typing, emit helpers
 │   └── tests/              API regression tests (node:test)
 ├── docs/                   API reference, deployment guide, screenshots
@@ -100,6 +109,14 @@ npm run dev:client     # UI  on http://localhost:3000
 | `EMAIL_MX_CHECK` | | `true` | Reject domains that can't receive mail |
 | `SEEN_MESSAGE_TTL_SECONDS` | | `120` | Seen messages are deleted this long after being read |
 | `MESSAGE_SWEEP_INTERVAL_SECONDS` | | `15` | Cleanup job interval |
+| `AI_KEYS_SECRET` | prod (for AI) | dev fallback | Encrypts users' AI provider keys (≥ 32 chars) |
+| `AI_MAX_OUTPUT_TOKENS` / `AI_MAX_REPLY_CHARS` | | `800` / `500` | Keep AI replies short |
+| `AI_REQUEST_TIMEOUT_SECONDS` | | `90` | Provider request timeout |
+| `AI_RATE_LIMIT_PER_MINUTE` | | `20` | AI generations per user per minute |
+| `AI_MAX_BOTS_PER_USER` | | `10` | Models per user |
+| `AI_HISTORY_MESSAGES` | | `10` | Context messages in private AI chats |
+| `ALLOW_PRIVATE_AI_ENDPOINTS` | | `true` dev / `false` prod | Allow localhost/private base URLs (e.g. Ollama) |
+| `GROUP_MAX_MEMBERS` | | `50` | Maximum group size |
 | `MONGO_AUTO_INDEX` | | `false` | Build indexes on start in production |
 | `RATE_LIMIT_PER_MINUTE` | | `300` | API requests per IP per minute |
 | `AUTH_RATE_LIMIT` | | `20` | Login/signup attempts per IP per 15 min |
@@ -132,7 +149,7 @@ Short version (single service, e.g. Render):
 - Build command: `npm run build`
 - Start command: `npm start`
 - Health check: `/api/health`
-- Env: `NODE_ENV=production`, `SERVE_CLIENT=true`, `MONGODB_URI`, `JWT_SECRET`, SMTP settings, Cloudinary keys
+- Env: `NODE_ENV=production`, `SERVE_CLIENT=true`, `MONGODB_URI`, `JWT_SECRET`, `AI_KEYS_SECRET`, SMTP settings, Cloudinary keys
 
 Or use Docker: `docker build -t quick-chat . && docker run -p 5000:5000 --env-file server/.env quick-chat`.
 

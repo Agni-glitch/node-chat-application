@@ -43,3 +43,85 @@ test("OTP codes are 6 digits and hashes are bound to email and purpose", () => {
   assert.notEqual(h, hashCode("a@b.co", "reset", "123456"));
   assert.notEqual(h, hashCode("c@d.co", "verify", "123456"));
 });
+
+const config = require("../config/env");
+const { parseMentions, stripMentions } = require("../services/ai");
+const { shorten, normalizeTurns } = require("../services/ai/providers");
+const { isPrivateIp, assertSafeBaseUrl } = require("../utils/net");
+const { encrypt, decrypt } = require("../utils/crypto");
+const { validate } = require("../controllers/botController");
+
+test("mentions are parsed case-insensitively and stripped from the prompt", () => {
+  assert.deepEqual(parseMentions("@Alen what is 2+2? cc @pix @alen"), ["alen", "pix"]);
+  assert.deepEqual(parseMentions("email me at bob@alen.com"), [], "emails are not mentions");
+  assert.deepEqual(parseMentions("@@alen"), []);
+  assert.equal(stripMentions("@Alen  what is 2+2? @someone", ["alen"]), "what is 2+2? @someone");
+});
+
+test("replies are kept short", () => {
+  const long = "First sentence here. ".repeat(60);
+  const out = shorten(long, 200);
+  assert.ok(out.length <= 200);
+  assert.ok(out.endsWith("."));
+  assert.equal(shorten("  hi  "), "hi");
+  assert.ok(shorten("x".repeat(50) + " " + "y".repeat(300), 100).endsWith("…"));
+});
+
+test("conversation turns are merged and start with the user", () => {
+  const turns = normalizeTurns([
+    { role: "assistant", content: "hello" },
+    { role: "user", content: "a" },
+    { role: "user", content: "b" },
+    { role: "assistant", content: "c" },
+    { role: "user", content: "" },
+  ]);
+  assert.deepEqual(turns, [
+    { role: "user", content: "a\nb" },
+    { role: "assistant", content: "c" },
+  ]);
+});
+
+test("private and internal addresses are detected", () => {
+  for (const ip of ["127.0.0.1", "10.1.2.3", "172.20.0.1", "192.168.1.1", "169.254.169.254", "100.64.0.1", "0.0.0.0", "::1", "fd00::1", "fe80::1", "::ffff:127.0.0.1"]) {
+    assert.equal(isPrivateIp(ip), true, ip);
+  }
+  for (const ip of ["8.8.8.8", "104.18.2.1", "2606:4700::1111"]) assert.equal(isPrivateIp(ip), false, ip);
+});
+
+test("custom base URLs must be public https when private endpoints are disabled", () => {
+  const prev = config.ai.allowPrivateEndpoints;
+  config.ai.allowPrivateEndpoints = false;
+  try {
+    assert.equal(assertSafeBaseUrl("https://openrouter.ai/api/v1/"), "https://openrouter.ai/api/v1");
+    for (const bad of ["http://api.example.com/v1", "https://localhost:11434/v1", "https://169.254.169.254/latest", "https://10.0.0.5/v1", "https://user:pw@api.example.com", "ftp://x.com", "nope"]) {
+      assert.throws(() => assertSafeBaseUrl(bad), { status: 400 }, bad);
+    }
+  } finally {
+    config.ai.allowPrivateEndpoints = prev;
+  }
+});
+
+test("API keys are encrypted with AES-GCM and tampering is detected", () => {
+  const box = encrypt("sk-test-1234567890");
+  assert.ok(!JSON.stringify(box).includes("sk-test"));
+  assert.equal(decrypt(box), "sk-test-1234567890");
+  const tampered = { ...box, data: Buffer.from("garbage!").toString("base64") };
+  assert.throws(() => decrypt(tampered));
+});
+
+test("AI model input is validated", () => {
+  const ok = validate({ name: "Alen", kind: "chat", provider: "openai", model: "gpt-5.5", apiKey: "sk-abc1234" });
+  assert.equal(ok.nameLower, "alen");
+  assert.equal(ok.apiKeyLast4, "1234");
+  assert.ok(ok.apiKey.data);
+  const bad = [
+    { name: "1bad", kind: "chat", provider: "openai", model: "gpt-5.5", apiKey: "k" },
+    { name: "has space", kind: "chat", provider: "openai", model: "gpt-5.5", apiKey: "k" },
+    { name: "Pix", kind: "image", provider: "anthropic", model: "claude", apiKey: "k" },
+    { name: "Alen", kind: "chat", provider: "openai", model: "gpt-5.5" },
+    { name: "Alen", kind: "chat", provider: "openai-compatible", model: "llama3" },
+    { name: "Alen", kind: "chat", provider: "nope", model: "x", apiKey: "k" },
+    { name: "Alen", kind: "chat", provider: "openai", model: "bad model id", apiKey: "k" },
+  ];
+  for (const b of bad) assert.throws(() => validate(b), { status: 400 }, JSON.stringify(b));
+});
