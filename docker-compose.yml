@@ -47,7 +47,7 @@ services:
 
   # API with auto-reload. Source is mounted from ./server; node_modules live in a volume.
   server:
-    image: node:24-alpine
+    image: node:26-alpine
     working_dir: /app/server
     command: sh -c "npm install --no-audit --no-fund && npx nodemon --legacy-watch server.js"
     environment:
@@ -76,7 +76,7 @@ services:
 
   # React dev server with hot reload. Source is mounted from ./client.
   client:
-    image: node:24-alpine
+    image: node:26-alpine
     working_dir: /app/client
     command: sh -c "npm install --no-audit --no-fund && npm start"
     environment:
