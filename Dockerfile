@@ -6,7 +6,7 @@
 FROM node:24-alpine AS client
 WORKDIR /app/client
 COPY client/package*.json ./
-RUN npm ci
+RUN npm ci --fetch-retries=5
 COPY client/ ./
 # Same-origin deploy: leave the API URL empty so the client talks to its own host.
 ARG REACT_APP_API_URL=""
@@ -23,7 +23,7 @@ ENV NODE_ENV=production \
     PORT=5000
 WORKDIR /app/server
 COPY server/package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm ci --omit=dev --fetch-retries=5 && npm cache clean --force
 COPY server/ ./
 COPY --from=client /app/client/build /app/client/build
 USER node

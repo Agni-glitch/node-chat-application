@@ -29,8 +29,13 @@ cd node-chat-application
 docker compose up
 ```
 
-The first start takes a few minutes while dependencies install into Docker volumes. Later starts are fast.
-When you see `webpack compiled successfully`, open http://localhost:3000.
+The **first start is slow**: the client installs ~1,350 packages into a Docker volume and compiles
+(about 10 minutes on a 2-CPU laptop; much less on faster machines). Later starts reuse the volume.
+When `docker compose logs client` shows `webpack compiled successfully`, open http://localhost:3000.
+
+> **Already running MongoDB on port 27017** (for example the MongoDB Windows service)? Create a `.env` file
+> in the repo root with `MONGO_PORT=27018`. Containers still reach the database internally; only the port
+> exposed to your machine changes. `MAILPIT_PORT`, `SMTP_PORT_HOST` and `PROD_PORT` work the same way.
 
 Create demo users (in a second terminal):
 
@@ -39,6 +44,12 @@ docker compose exec server npm run seed
 ```
 
 Edit files in `server/` or `client/` on your machine and the containers reload automatically.
+
+> **Hot reload speed on Windows and macOS:** file changes made on the host don't send file-system events
+> into containers, so the containers watch by **polling**. It works, but it costs CPU: on a 2-CPU laptop a
+> client rebuild can take minutes. For day-to-day development, [setup B](#b-node-locally-database-in-docker)
+> reloads almost instantly. On Windows you can also clone the repo inside WSL2 (e.g. `~/code` in Ubuntu),
+> run `docker compose` from there, and set `DOCKER_POLLING=false` in the root `.env` to use real file events.
 
 | Task | Command |
 | --- | --- |
@@ -180,10 +191,15 @@ afterwards to get the dev tools back.
 | --- | --- |
 | `Missing required environment variable: MONGODB_URI` | Run `npm run setup`, or check `server/.env` exists |
 | `[db] initial connection failed` | MongoDB isn't running: `npm run docker:db`, or start your local `mongod` |
-| Port 3000, 5000, 8025 or 27017 already in use | Stop whatever uses it, or change the left side of `ports:` in `docker-compose.yml` |
+| Port 27017 already in use (local MongoDB) | Add `MONGO_PORT=27018` to a `.env` file in the repo root. Same for `MAILPIT_PORT`, `SMTP_PORT_HOST`, `PROD_PORT` |
+| Port 3000 or 5000 already in use | Stop whatever uses it (the app and API URLs are wired to these ports) |
+| `docker compose up` says `server gave HTTP response to HTTPS client` | Docker Desktop was still starting its network proxy. Wait a minute and retry; `docker pull hello-world` is a quick test |
+| `npm error code ECONNRESET` in the `client` or `server` logs | A network hiccup during `npm install`. Run `docker compose up -d` again; it continues where it stopped |
+| `mongo` reported unhealthy, `dependency failed to start` | Usually a very busy machine. `docker compose up -d mongo` and retry; the health check allows up to 10 s per probe |
 | CORS errors in the browser console | The app must be opened at the origin in `CLIENT_URL` (default `http://localhost:3000`) |
 | No verification email | Setup C: look for the code in the API output. Setups A/B: open http://localhost:8025 |
-| Hot reload doesn't pick up changes in Docker (Windows/macOS) | Already handled with polling; if it still misses changes, `docker compose restart client` |
+| Hot reload is slow or the fans spin up in Docker (Windows/macOS) | That's polling; see the note under setup A. Use setup B for development, or move the repo into WSL2 with `DOCKER_POLLING=false` |
+| Hot reload misses a change in Docker | `docker compose restart client` (or `server`) |
 | `npm ci` fails with "Missing: … from lock file" | You're on npm 10 (Node 22). Use Node 24+, which ships npm 11 |
 | Client container exits right after starting | Make sure `stdin_open: true` is still set for `client` in `docker-compose.yml` |
 | Weird state after switching branches | `docker compose down -v && docker compose up`, or delete `node_modules` and run `npm run install:all` |
