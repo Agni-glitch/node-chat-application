@@ -22,7 +22,7 @@ jobs:
         node: [24, 26]
     services:
       mongo:
-        image: mongo:8.0
+        image: mongo:9.0
         ports: ["27017:27017"]
         options: >-
           --health-cmd "mongosh --quiet --eval 'db.adminCommand(1).ok'"
