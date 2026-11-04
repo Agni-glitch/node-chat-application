@@ -86,42 +86,51 @@ More detail for contributors is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 │   ├── model/              Mongoose models
 │   ├── services/           Disappearing-message sweeper, group read receipts, AI providers + @mentions
 │   ├── utils/              OTP, mailer, validation, CORS origins, social links, key encryption, SSRF-safe HTTP
+│   ├── scripts/            seed.js (demo data)
 │   ├── socket.js           Socket.IO auth, presence, typing, emit helpers
-│   └── tests/              API and unit tests (node:test)
-├── docs/                   Architecture, API reference, deployment guide, screenshots
+│   └── tests/              Unit/API tests, plus e2e/ against a real MongoDB (node:test)
+├── scripts/                setup.js (env files), dev.js (run API + app together)
+├── docs/                   Development, architecture, API reference, deployment guide, screenshots
 ├── vercel.json             Vercel config for the client
 ├── render.yaml             Render Blueprint for the API
+├── docker-compose.yml      Local dev stack (MongoDB, Mailpit, API, app) + production-image profile
 └── Dockerfile              Single-image production build (API + client)
 ```
 
 ## Quick start
 
-**You need:** Node.js 24 or newer (it ships with npm 11, which the lockfiles need) (see [.nvmrc](.nvmrc)) and a MongoDB database, either local or a free
-[Atlas](https://www.mongodb.com/atlas) cluster. SMTP and Cloudinary are optional in development.
+### With Docker (nothing else to install)
 
 ```bash
 git clone https://github.com/Agni-glitch/node-chat-application.git
 cd node-chat-application
-
-# 1. Install dependencies for both apps
-npm run install:all
-
-# 2. Configure the server: set MONGODB_URI and JWT_SECRET at minimum
-cp server/.env.example server/.env
-
-# 3. Optional: configure the client (defaults to http://localhost:5000)
-cp client/.env.example client/.env.local
-
-# 4. Run both, in two terminals
-npm run dev:server     # API on http://localhost:5000
-npm run dev:client     # UI  on http://localhost:3000
+docker compose up                              # first run takes a few minutes
+docker compose exec server npm run seed        # in another terminal: demo users
 ```
 
-> **No SMTP in development?** Leave `SMTP_HOST` empty and the server prints every verification and
-> password-reset email, including the code, to its console.
->
-> **No MongoDB installed?** `docker run -d -p 27017:27017 mongo:7`, then use
-> `MONGODB_URI=mongodb://127.0.0.1:27017/quick-chat`.
+### With Node.js 24+ (recommended for development)
+
+```bash
+git clone https://github.com/Agni-glitch/node-chat-application.git
+cd node-chat-application
+npm run install:all     # install server + client dependencies
+npm run setup           # create server/.env and client/.env.local with fresh secrets
+npm run docker:db       # MongoDB + Mailpit in Docker (or use your own MongoDB)
+npm run seed            # demo users and chats
+npm run dev             # API + app together
+```
+
+Then open:
+
+| URL | What |
+| --- | --- |
+| http://localhost:3000 | The app. Log in as `alice@example.com` / `Password123!` (also `bob@`, `carol@`) |
+| http://localhost:8025 | Mailpit: every email the app sends, including sign-up codes |
+| http://localhost:5000/api/health | The API |
+
+Without Docker, verification codes are printed in the API output instead of Mailpit.
+**[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** covers all setups, running tests, trying the production
+image locally, and troubleshooting.
 
 ## Configuration
 
@@ -145,6 +154,7 @@ Every setting is documented inline in [server/.env.example](server/.env.example)
 | `AI_KEYS_SECRET` | prod (for AI) | dev fallback | Encrypts users' AI provider keys (≥ 32 chars) |
 | `MONGO_AUTO_INDEX` | | `false` | Build indexes on start in production (needed at least once) |
 | `TRUST_PROXY` | | `1` in prod | Number of proxies in front of the app |
+| `HTTPS_ONLY` | | `true` in prod | Send HSTS and `upgrade-insecure-requests`. Set `false` only to run production mode over plain http locally |
 
 <details>
 <summary>All other server settings</summary>
@@ -187,12 +197,19 @@ Every setting is documented inline in [server/.env.example](server/.env.example)
 
 | Command (repo root) | Description |
 | --- | --- |
+| `npm run setup` | Create `server/.env` and `client/.env.local` with fresh secrets (never overwrites) |
 | `npm run install:all` | Install server and client dependencies |
-| `npm run dev:server` | API with auto-reload (nodemon) |
-| `npm run dev:client` | React dev server |
-| `npm test` | Server tests + client unit tests |
-| `npm run build` | Install production deps and build the client |
-| `npm start` | Start the API (serves the client when `SERVE_CLIENT=true`) |
+| `npm run dev` | API (auto-reload) + React dev server together |
+| `npm run dev:server` / `dev:client` | Run just one of them |
+| `npm run seed` | Demo users and chats in your local database |
+| `npm test` | Server tests + client unit tests (no database needed) |
+| `npm run test:e2e` | End-to-end tests against a local MongoDB |
+| `npm run docker:up` | Full dev stack in Docker (`docker compose up`) |
+| `npm run docker:db` | Only MongoDB + Mailpit in Docker |
+| `npm run docker:test` | Server unit + end-to-end tests inside Docker |
+| `npm run docker:prod` | The production image on http://localhost:8080 |
+| `npm run docker:down` | Stop all containers |
+| `npm run build` / `npm start` | Production build / start (serves the client when `SERVE_CLIENT=true`) |
 
 ## Deployment
 
@@ -231,6 +248,7 @@ Please follow the [Code of Conduct](CODE_OF_CONDUCT.md), and report security pro
 
 ## Documentation
 
+- [Local development and testing](docs/DEVELOPMENT.md)
 - [Architecture overview](docs/ARCHITECTURE.md)
 - [API reference (REST + Socket.IO events)](docs/API.md)
 - [Deployment guide](docs/DEPLOYMENT.md)

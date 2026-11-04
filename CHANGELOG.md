@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- **Local development in one command:** `docker-compose.yml` with MongoDB, Mailpit (catches OTP emails at
+  http://localhost:8025), the API and the React app with hot reload, plus a `prod` profile that runs the
+  production image on http://localhost:8080.
+- `npm run setup` creates `server/.env` and `client/.env.local` with fresh secrets; `npm run dev` runs the API and
+  app together; `npm run seed` creates demo users and chats (refuses production and remote databases).
+- End-to-end test suite (`npm run test:e2e`) against a real MongoDB, run in CI natively and inside the Docker dev stack.
+- CI boots the production image with Docker Compose and checks health, SPA routes, headers and email delivery.
+- `HTTPS_ONLY` setting (default `true` in production) controls HSTS and `upgrade-insecure-requests`, so the
+  production build can be tested over plain http. `SKIP_DOTENV=true` ignores `server/.env`.
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): setups with and without Docker, testing, troubleshooting.
 - **Vercel deployment** for the client: `vercel.json` with SPA rewrites, long-term caching for hashed
   assets and security headers (CSP, frame, referrer and permissions policies).
 - Build-time check (`client/scripts/check-env.js`) that stops a Vercel build when `REACT_APP_API_URL`

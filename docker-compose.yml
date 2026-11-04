@@ -1,0 +1,120 @@
+# Local development and testing with Docker. Nothing here is used in production.
+#
+#   docker compose up                 Dev stack with hot reload: app http://localhost:3000,
+#                                     API http://localhost:5000, emails http://localhost:8025
+#   docker compose up -d mongo mailpit
+#                                     Only MongoDB + Mailpit, for running the code natively
+#   docker compose --profile prod up --build app
+#                                     The production Docker image on http://localhost:8080
+#   docker compose down               Stop everything (add -v to also wipe the database)
+#
+# Optional: put CLOUDINARY_* keys (for image uploads) in a .env file next to this one.
+# All other values below are local-only placeholders, not real secrets.
+
+name: quick-chat
+
+x-local-env: &local-env
+  SKIP_DOTENV: "true" # ignore server/.env so local credentials never leak into containers
+  JWT_SECRET: local-dev-jwt-secret-not-for-production-0123456789
+  AI_KEYS_SECRET: local-dev-ai-keys-secret-not-for-production-0123456789
+  SMTP_HOST: mailpit
+  SMTP_PORT: "1025"
+  MAIL_FROM: Quick Chat <no-reply@quick-chat.local>
+  EMAIL_MX_CHECK: "false"
+  CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+  CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+  CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+
+services:
+  mongo:
+    image: mongo:8.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Catches every email the app sends. Read verification codes at http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.32
+    ports:
+      - "8025:8025" # web inbox
+      - "1025:1025" # SMTP
+
+  # API with auto-reload. Source is mounted from ./server; node_modules live in a volume.
+  server:
+    image: node:24-alpine
+    working_dir: /app/server
+    command: sh -c "npm install --no-audit --no-fund && npx nodemon --legacy-watch server.js"
+    environment:
+      <<: *local-env
+      NODE_ENV: development
+      PORT: "5000"
+      MONGODB_URI: mongodb://mongo:27017/quick-chat
+      CLIENT_URL: http://localhost:3000
+      E2E_MONGODB_URI: mongodb://mongo:27017/quick-chat-e2e
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./server:/app/server
+      - server-node-modules:/app/server/node_modules
+    depends_on:
+      mongo:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
+
+  # React dev server with hot reload. Source is mounted from ./client.
+  client:
+    image: node:24-alpine
+    working_dir: /app/client
+    command: sh -c "npm install --no-audit --no-fund && npm start"
+    environment:
+      REACT_APP_API_URL: http://localhost:5000
+      BROWSER: none
+      WATCHPACK_POLLING: "true" # file watching through Docker Desktop bind mounts
+      CHOKIDAR_USEPOLLING: "true"
+      WDS_SOCKET_PORT: "3000"
+    stdin_open: true # the CRA dev server exits when stdin closes
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./client:/app/client
+      - client-node-modules:/app/client/node_modules
+    depends_on:
+      - server
+
+  # The production image (same Dockerfile as a real deploy) serving API + UI on one origin.
+  app:
+    profiles: [prod]
+    build: .
+    environment:
+      <<: *local-env
+      NODE_ENV: production
+      SERVE_CLIENT: "true"
+      HTTPS_ONLY: "false" # plain http on localhost; real deploys keep the default (true)
+      TRUST_PROXY: "0"
+      MONGODB_URI: mongodb://mongo:27017/quick-chat-prod
+      MONGO_AUTO_INDEX: "true"
+    ports:
+      - "8080:5000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+
+volumes:
+  mongo-data:
+  server-node-modules:
+  client-node-modules:

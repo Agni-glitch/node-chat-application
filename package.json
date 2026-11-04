@@ -9,11 +9,21 @@
     "node": ">=24"
   },
   "scripts": {
+    "setup": "node scripts/setup.js",
     "install:all": "npm ci --prefix server && npm ci --prefix client",
+    "dev": "node scripts/dev.js",
     "dev:server": "npm run dev --prefix server",
     "dev:client": "npm start --prefix client",
+    "seed": "npm run seed --prefix server",
+    "test": "npm test --prefix server && npm run test:ci --prefix client",
+    "test:e2e": "npm run test:e2e --prefix server",
+    "docker:up": "docker compose up",
+    "docker:db": "docker compose up -d mongo mailpit",
+    "docker:seed": "docker compose exec server npm run seed",
+    "docker:test": "docker compose run --rm server sh -c \"npm install --no-audit --no-fund && npm test && npm run test:e2e\"",
+    "docker:prod": "docker compose --profile prod up --build app",
+    "docker:down": "docker compose --profile prod down",
     "build": "npm ci --prefix server --omit=dev && npm ci --prefix client && npm run build --prefix client",
-    "start": "npm start --prefix server",
-    "test": "npm test --prefix server && npm run test:ci --prefix client"
+    "start": "npm start --prefix server"
   }
 }
