@@ -14,8 +14,9 @@
   issue and pull request templates, Dependabot, `.editorconfig`, `.gitattributes` and `.nvmrc`.
 
 ### Changed
-- Node.js 22 or newer is required (Node 18 and 20 are end-of-life, and the server test runner needs 21+).
-- CI tests on Node 22 and 24, builds the client with the same check as Vercel, builds the Docker image,
+- Node.js 24 or newer (with npm 11) is required. Dependabot writes lockfiles with npm 11, which npm 10
+  (bundled with Node 22) rejects in `npm ci`. Docker, Render and CI all use Node 24 now.
+- CI tests on Node 24 and 26, reports a single `CI result` check for branch protection, builds the client with the same check as Vercel, builds the Docker image,
   and runs with read-only permissions.
 - README and deployment guide rewritten around the Vercel + Render setup.
 

@@ -50,7 +50,7 @@ body:
     attributes:
       label: Environment
       description: Browser and OS, Node version, and whether this is local or deployed (and where).
-      placeholder: Chrome 140 on Windows 11, Node 22, local dev
+      placeholder: Chrome 140 on Windows 11, Node 24, local dev
   - type: textarea
     id: logs
     attributes:

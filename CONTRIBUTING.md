@@ -18,7 +18,7 @@ That saves you from building something that can't be merged.
 
 ## Development setup
 
-You need **Node.js 22+** (`nvm use` picks the version from [.nvmrc](.nvmrc)), **npm**, and a MongoDB database.
+You need **Node.js 24+** (with npm 11) (`nvm use` picks the version from [.nvmrc](.nvmrc)), **npm**, and a MongoDB database.
 
 ```bash
 # Fork the repo on GitHub, then:

@@ -2,7 +2,7 @@
 
 Quick Chat has two parts:
 
-- **server/**: Express REST API + Socket.IO (Node ≥ 22, MongoDB)
+- **server/**: Express REST API + Socket.IO (Node ≥ 24, MongoDB)
 - **client/**: React single-page app (Create React App), built to static files
 
 The server holds WebSocket connections open and runs a cleanup job every few seconds, so it needs a
@@ -88,7 +88,7 @@ The Blueprint uses the **Starter** plan. The free plan is fine for trying things
 | Start command | `npm start` |
 | Health check path | `/api/health` |
 
-Environment: `NODE_ENV=production`, `SERVE_CLIENT=false`, `NODE_VERSION=22`, `MONGO_AUTO_INDEX=true`, plus
+Environment: `NODE_ENV=production`, `SERVE_CLIENT=false`, `NODE_VERSION=24`, `MONGO_AUTO_INDEX=true`, plus
 everything under [Environment variables](#environment-variables).
 </details>
 
@@ -114,6 +114,10 @@ need to change any build settings.
    message from [client/scripts/check-env.js](../client/scripts/check-env.js) instead of shipping a broken app.
 
 `REACT_APP_*` values are compiled into the bundle. They're public, and **changing one requires a redeploy**.
+
+**Node version:** Vercel reads `engines.node` (`>=24`) from the root `package.json` and builds with Node 24 or newer.
+If your project settings pin an older version, set *Settings → General → Node.js Version* to 24.x or later:
+Node 22 ships npm 10, which can't install the npm 11 lockfiles in this repo.
 
 ### 4. Connect the two
 
