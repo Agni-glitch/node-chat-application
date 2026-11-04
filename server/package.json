@@ -15,21 +15,21 @@
   "author": "Agni Roybar",
   "license": "MIT",
   "dependencies": {
-    "bcryptjs": "^3.0.2",
-    "cloudinary": "^2.7.0",
+    "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.11.0",
     "compression": "^1.8.2",
-    "cors": "^2.8.5",
+    "cors": "^2.8.6",
     "dotenv": "^16.5.0",
-    "express": "^5.1.0",
+    "express": "^5.3.0",
     "express-rate-limit": "^7.5.1",
     "helmet": "^8.3.0",
-    "jsonwebtoken": "^9.0.2",
+    "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.13.2",
     "morgan": "^1.12.1",
     "nodemailer": "^7.0.13",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.4"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
+    "nodemon": "^3.1.14"
   }
 }
