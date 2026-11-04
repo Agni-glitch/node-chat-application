@@ -20,6 +20,13 @@ jobs:
       fail-fast: false
       matrix:
         node: [24, 26]
+    services:
+      mongo:
+        image: mongo:9.0
+        ports: ["27017:27017"]
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok'"
+          --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -36,6 +43,11 @@ jobs:
       - name: Server tests
         run: npm test --prefix server
 
+      - name: End-to-end tests (real MongoDB)
+        env:
+          E2E_MONGODB_URI: mongodb://127.0.0.1:27017/quick-chat-e2e
+        run: npm run test:e2e --prefix server
+
       - name: Client tests
         run: npm run test:ci --prefix client
 
@@ -47,12 +59,44 @@ jobs:
         run: node client/scripts/check-env.js && npm run build --prefix client
 
   docker:
-    name: Docker image builds
+    name: Docker
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Build image
-        run: docker build -t quick-chat:ci .
+
+      - name: Validate docker-compose.yml
+        run: docker compose --profile prod config --quiet
+
+      - name: Production image (docker compose --profile prod)
+        run: docker compose --profile prod up -d --build --wait --wait-timeout 300 app
+
+      - name: Check the production container
+        run: |
+          set -euo pipefail
+          health=$(curl -fsS http://localhost:8080/api/health); echo "$health"
+          grep -q '"db":"up"' <<< "$health"
+          grep -q 'id="root"' <<< "$(curl -fsS http://localhost:8080/)"
+          grep -q 'id="root"' <<< "$(curl -fsS http://localhost:8080/profile)"   # SPA deep link
+          headers=$(curl -fsSI http://localhost:8080/)
+          if grep -qi 'upgrade-insecure-requests' <<< "$headers"; then echo "CSP would break plain http"; exit 1; fi
+          # The sign-up email goes through SMTP to Mailpit
+          body='{"firstname":"Ci","lastname":"Test","email":"ci@example.com","password":"Password123!"}'
+          curl -fsS -X POST http://localhost:8080/api/auth/signup -H 'content-type: application/json' -d "$body"
+          sleep 2
+          grep -q 'ci@example.com' <<< "$(curl -fsS http://localhost:8025/api/v1/messages)"
+
+      - name: Dev stack + end-to-end tests inside the server container
+        run: |
+          docker compose up -d --wait --wait-timeout 300 server
+          docker compose exec -T server npm run test:e2e
+
+      - name: Container logs
+        if: failure()
+        run: docker compose --profile prod logs --no-color --tail 100
+
+      - name: Clean up
+        if: always()
+        run: docker compose --profile prod down -v
 
   # The single check required by the "Protect main" ruleset. Branch rules point at this job
   # instead of each matrix entry, so changing Node versions or adding jobs never blocks merges.
@@ -65,4 +109,5 @@ jobs:
       - name: All jobs passed
         run: |
           echo "test: ${{ needs.test.result }}, docker: ${{ needs.docker.result }}"
+          # Both must be "success"; "skipped" or "cancelled" also fail this check.
           [ "${{ needs.test.result }}" = "success" ] && [ "${{ needs.docker.result }}" = "success" ]

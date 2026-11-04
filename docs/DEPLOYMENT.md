@@ -182,6 +182,9 @@ docker run -d -p 5000:5000 --env-file server/.env -e NODE_ENV=production -e SERV
 ```
 
 The image runs as the non-root `node` user and includes a `HEALTHCHECK` on `/api/health`.
+Put it behind HTTPS (a reverse proxy or your platform's TLS). Only if you deliberately serve it over plain
+http, set `HTTPS_ONLY=false`; otherwise browsers try to upgrade every asset request to https.
+To try the image locally, see [DEVELOPMENT.md](DEVELOPMENT.md#testing-the-production-build).
 
 ---
 

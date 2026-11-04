@@ -23,6 +23,7 @@ Closes #
 ## Checklist
 
 - [ ] `npm test` passes
+- [ ] `npm run test:e2e` passes (needs MongoDB: `npm run docker:db`)
 - [ ] `CI=true npm run build --prefix client` passes
 - [ ] Tests added or updated where it makes sense
 - [ ] Docs updated (README, `docs/API.md`, `.env.example`) for new endpoints, events or settings

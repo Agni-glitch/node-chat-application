@@ -18,37 +18,38 @@ That saves you from building something that can't be merged.
 
 ## Development setup
 
-You need **Node.js 24+** (with npm 11) (`nvm use` picks the version from [.nvmrc](.nvmrc)), **npm**, and a MongoDB database.
+Fork the repo on GitHub, then:
 
 ```bash
-# Fork the repo on GitHub, then:
 git clone https://github.com/<your-username>/node-chat-application.git
 cd node-chat-application
 git remote add upstream https://github.com/Agni-glitch/node-chat-application.git
+```
 
+**Option 1: Node.js 24+ and Docker for the database** (recommended)
+
+```bash
+nvm use                 # Node 24, from .nvmrc
 npm run install:all
-cp server/.env.example server/.env   # set MONGODB_URI and JWT_SECRET
+npm run setup           # creates server/.env and client/.env.local with fresh secrets
+npm run docker:db       # MongoDB + Mailpit
+npm run seed            # demo users: alice/bob/carol@example.com, password Password123!
+npm run dev             # http://localhost:3000 (app) and :5000 (API), both auto-reload
 ```
 
-A local MongoDB is the easiest option:
+**Option 2: everything in Docker**
 
 ```bash
-docker run -d --name quick-chat-mongo -p 27017:27017 mongo:7
-# server/.env → MONGODB_URI=mongodb://127.0.0.1:27017/quick-chat
+docker compose up
+docker compose exec server npm run seed
 ```
 
-Leave `SMTP_HOST` empty: verification codes are printed to the server console. Cloudinary and AI settings
-are only needed if you're working on image uploads or AI models.
+Sign-up and reset emails land in Mailpit at http://localhost:8025. Without Docker, the codes are printed in
+the API output. To try realtime features, log in as two demo users at once (one in a private window).
 
-```bash
-npm run dev:server   # http://localhost:5000, restarts on change
-npm run dev:client   # http://localhost:3000, hot reload
-```
-
-To try realtime features, sign up two accounts in two different browsers (or one normal and one private window).
-
-New to the codebase? [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) explains how requests, sockets,
-disappearing messages and AI replies flow, and which files to touch for common changes.
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) has every setup (including no Docker at all), how to try the
+production image locally, and a troubleshooting table. New to the codebase? [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+explains how requests, sockets, disappearing messages and AI replies flow, and which files to touch for common changes.
 
 ## Making a change
 
@@ -58,11 +59,13 @@ disappearing messages and AI replies flow, and which files to touch for common c
    ```
    Branch prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `chore/`.
 2. Make your change, with tests where it makes sense (see below).
-3. Run the full check locally. It's what CI runs:
+3. Run the checks locally. They're what CI runs:
    ```bash
-   npm test
+   npm test                                # unit/API tests, no database needed
+   npm run test:e2e                        # end-to-end, needs MongoDB (npm run docker:db)
    CI=true npm run build --prefix client   # warnings fail the build in CI
    ```
+   Only have Docker? `npm run docker:test` runs the server tests inside a container.
 4. Commit using [Conventional Commits](https://www.conventionalcommits.org/):
    ```
    feat(chat): show a preview of the replied-to message
@@ -74,7 +77,7 @@ disappearing messages and AI replies flow, and which files to touch for common c
 ### Pull request checklist
 
 - [ ] One focused change per PR; unrelated refactors go in a separate PR
-- [ ] `npm test` and the client production build pass
+- [ ] `npm test`, `npm run test:e2e` and the client production build pass
 - [ ] New behavior has tests; bug fixes have a test that failed before the fix
 - [ ] User-visible changes are noted under **Unreleased** in [CHANGELOG.md](CHANGELOG.md)
 - [ ] New endpoints, socket events or env vars are documented ([docs/API.md](docs/API.md), [server/.env.example](server/.env.example), README)
@@ -107,11 +110,16 @@ LF line endings, final newline. The client's ESLint config (`react-app`) runs du
 
 | Where | Runner | Command |
 | --- | --- | --- |
-| `server/tests/` | [`node:test`](https://nodejs.org/api/test.html) | `npm test --prefix server` |
+| `server/tests/*.test.js` | [`node:test`](https://nodejs.org/api/test.html) | `npm test --prefix server` |
+| `server/tests/e2e/` | `node:test` + real MongoDB | `npm run test:e2e` |
 | `client/src/**/*.test.js` | Jest (react-scripts) | `npm run test:ci --prefix client`, or `npm test --prefix client` for watch mode |
 
-Server tests run **without a database**. They exercise auth, validation, CORS and pure utilities.
+Unit/API tests run **without a database** and cover auth, validation, CORS, headers and pure utilities.
 Prefer adding unit tests for logic you extract into `server/utils/` or `server/services/`.
+
+The end-to-end test starts the real server against a throwaway database (dropped before and after) and walks
+through sign-up, sockets, disappearing messages, groups and password reset. Extend
+[server/tests/e2e/chat.e2e.js](server/tests/e2e/chat.e2e.js) when you change one of those flows.
 
 ## Project conventions
 

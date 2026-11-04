@@ -1,7 +1,10 @@
 const path = require("path");
 const dotenv = require("dotenv");
 
-dotenv.config({ path: path.join(__dirname, "..", ".env"), quiet: true });
+// SKIP_DOTENV=true ignores server/.env, so tests and containers never pick up real credentials by accident.
+if (process.env.SKIP_DOTENV !== "true") {
+  dotenv.config({ path: path.join(__dirname, "..", ".env"), quiet: true });
+}
 
 const NODE_ENV = process.env.NODE_ENV || "development";
 const isProduction = NODE_ENV === "production";
@@ -45,6 +48,9 @@ const config = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "1d",
   clientUrls,
   serveClient: process.env.SERVE_CLIENT === "true",
+  // Send HSTS and upgrade-insecure-requests. On by default in production; turn it off to run
+  // the production build over plain http (e.g. the local Docker "prod" profile).
+  httpsOnly: process.env.HTTPS_ONLY ? process.env.HTTPS_ONLY === "true" : isProduction,
   trustProxy: process.env.TRUST_PROXY ? Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY : isProduction ? 1 : 0,
   cloudinary: {
     cloudName: process.env.CLOUDINARY_CLOUD_NAME,

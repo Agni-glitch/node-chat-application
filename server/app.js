@@ -43,9 +43,12 @@ app.use(
             fontSrc: ["'self'", "data:"],
             imgSrc: ["'self'", "data:", "blob:", "https://res.cloudinary.com"],
             connectSrc: ["'self'", "ws:", "wss:"],
+            // Only when served over HTTPS; on plain http://localhost it would break every asset.
+            upgradeInsecureRequests: config.httpsOnly ? [] : null,
           },
         }
       : false,
+    strictTransportSecurity: config.httpsOnly,
     crossOriginResourcePolicy: { policy: "same-site" },
   })
 );
