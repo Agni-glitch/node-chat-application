@@ -46,7 +46,7 @@ services:
 
   # Catches every email the app sends. Read verification codes at http://localhost:8025
   mailpit:
-    image: axllent/mailpit:v1.32
+    image: axllent/mailpit:v1.33
     ports:
       - "${MAILPIT_PORT:-8025}:8025" # web inbox
       - "${SMTP_PORT_HOST:-1025}:1025" # SMTP
