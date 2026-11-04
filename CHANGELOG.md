@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+- Docker Compose: host ports are configurable (`MONGO_PORT`, `MAILPIT_PORT`, `SMTP_PORT_HOST`, `PROD_PORT`), so the stack
+  starts next to a locally installed MongoDB; MongoDB uses a lightweight TCP health check (the `mongosh` check
+  timed out on busy 2-CPU machines); `npm install`/`npm ci` retry on flaky networks; `DOCKER_POLLING` switches
+  off polling file watchers when the repo lives in WSL2/Linux.
+
 ### Added
 - **Local development in one command:** `docker-compose.yml` with MongoDB, Mailpit (catches OTP emails at
   http://localhost:8025), the API and the React app with hot reload, plus a `prod` profile that runs the
