@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [22, 24]
+        node: [24, 26]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -53,3 +53,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build image
         run: docker build -t quick-chat:ci .
+
+  # The single check required by the "Protect main" ruleset. Branch rules point at this job
+  # instead of each matrix entry, so changing Node versions or adding jobs never blocks merges.
+  result:
+    name: CI result
+    if: always()
+    needs: [test, docker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: All jobs passed
+        run: |
+          echo "test: ${{ needs.test.result }}, docker: ${{ needs.docker.result }}"
+          [ "${{ needs.test.result }}" = "success" ] && [ "${{ needs.docker.result }}" = "success" ]

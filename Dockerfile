@@ -3,7 +3,7 @@
 # Run:    docker run -p 5000:5000 --env-file server/.env -e SERVE_CLIENT=true quick-chat
 
 # ---- Build the React client ----
-FROM node:22-alpine AS client
+FROM node:24-alpine AS client
 WORKDIR /app/client
 COPY client/package*.json ./
 RUN npm ci
@@ -17,7 +17,7 @@ ENV REACT_APP_API_URL=$REACT_APP_API_URL \
 RUN npm run build
 
 # ---- Runtime ----
-FROM node:22-alpine
+FROM node:24-alpine
 ENV NODE_ENV=production \
     SERVE_CLIENT=true \
     PORT=5000

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Agni-glitch/node-chat-application/actions/workflows/ci.yml/badge.svg)](https://github.com/Agni-glitch/node-chat-application/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white)
+![Node](https://img.shields.io/badge/node-%E2%89%A524-339933?logo=node.js&logoColor=white)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 A real-time chat app for direct and group conversations, with messages that disappear once
@@ -96,7 +96,7 @@ More detail for contributors is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Quick start
 
-**You need:** Node.js 22 or newer (see [.nvmrc](.nvmrc)) and a MongoDB database, either local or a free
+**You need:** Node.js 24 or newer (it ships with npm 11, which the lockfiles need) (see [.nvmrc](.nvmrc)) and a MongoDB database, either local or a free
 [Atlas](https://www.mongodb.com/atlas) cluster. SMTP and Cloudinary are optional in development.
 
 ```bash

@@ -6,7 +6,7 @@
   "license": "MIT",
   "author": "Agni Roybar",
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "scripts": {
     "install:all": "npm ci --prefix server && npm ci --prefix client",
