@@ -29,16 +29,26 @@ async function issueOtp(email, purpose) {
     }
   }
   const code = generateCode();
+  const codeHash = hashCode(email, purpose, code);
   await Otp.findOneAndUpdate(
     { email, purpose },
     {
-      codeHash: hashCode(email, purpose, code),
+      codeHash,
       attempts: 0,
       expiresAt: new Date(Date.now() + config.otp.ttlMinutes * 60 * 1000),
     },
     { upsert: true, setDefaultsOnInsert: true }
   );
-  await sendOtpEmail(email, code, purpose);
+  try {
+    await sendOtpEmail(email, code, purpose);
+  } catch (error) {
+    try {
+      await Otp.deleteOne({ email, purpose, codeHash });
+    } catch (cleanupError) {
+      console.error("[otp] failed to remove undelivered code:", cleanupError.message);
+    }
+    throw error;
+  }
   return { sent: true, retryAfter: config.otp.resendCooldownSeconds };
 }
 
