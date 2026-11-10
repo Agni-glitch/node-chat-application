@@ -4,7 +4,7 @@
   "private": true,
   "dependencies": {
     "@fontsource/inter": "^5.3.0",
-    "@reduxjs/toolkit": "^2.13.0",
+    "@reduxjs/toolkit": "^2.14.0",
     "axios": "^1.8.4",
     "emoji-picker-react": "^5.1.4",
     "font-awesome": "^4.7.0",
